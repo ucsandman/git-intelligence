@@ -33,7 +33,15 @@ export type EventType =
   | 'growth-approved'
   | 'growth-rejected'
   | 'baseline-updated'
-  | 'anomaly-detected';
+  | 'anomaly-detected'
+  | 'cycle-started'
+  | 'plan-created'
+  | 'implementation-complete'
+  | 'implementation-failed'
+  | 'change-approved'
+  | 'merge-failed'
+  | 'merge-declined-by-human'
+  | 'cycle-complete';
 
 export interface OrganismConfig {
   quality_standards: {
