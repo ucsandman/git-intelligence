@@ -40,3 +40,14 @@ export interface Baselines {
   file_count: number;
   total_lines: number;
 }
+
+export interface FragileFileInfo {
+  path: string;
+  regression_count: number;
+  last_regression: string;
+  notes: string;
+}
+
+export interface RegressionContext {
+  fragile_files: FragileFileInfo[];
+}

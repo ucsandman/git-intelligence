@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import type { OrganismConfig } from '../../../src/agents/types.js';
-import type { Baselines } from '../../../src/agents/immune-system/types.js';
+import type { Baselines, RegressionContext } from '../../../src/agents/immune-system/types.js';
 
 // ── mocks ──────────────────────────────────────────────────────────
 
@@ -17,12 +17,35 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   return { ...actual, default: { ...actual, readFile: vi.fn() }, readFile: vi.fn() };
 });
 
+const { mockGit, simpleGitFactory } = vi.hoisted(() => {
+  const mockGit = {
+    diff: vi.fn(),
+    show: vi.fn(),
+  };
+  const simpleGitFactory = vi.fn().mockReturnValue(mockGit);
+  return { mockGit, simpleGitFactory };
+});
+
+vi.mock('simple-git', () => ({
+  default: simpleGitFactory,
+}));
+
+/** Restore simple-git mock defaults after vi.resetAllMocks(). */
+function restoreGitMocks(): void {
+  simpleGitFactory.mockReturnValue(mockGit);
+  mockGit.diff.mockResolvedValue('');
+  mockGit.show.mockResolvedValue('{}');
+}
+
 import fs from 'node:fs/promises';
 import { runCommand } from '../../../src/agents/utils.js';
 import { collectCodeQuality } from '../../../src/agents/sensory-cortex/collectors/code-quality.js';
 import { runTestCheck } from '../../../src/agents/immune-system/checks/test-check.js';
 import { runQualityCheck } from '../../../src/agents/immune-system/checks/quality-check.js';
 import { runPerformanceCheck } from '../../../src/agents/immune-system/checks/performance-check.js';
+import { runBoundaryCheck } from '../../../src/agents/immune-system/checks/boundary-check.js';
+import { runRegressionCheck } from '../../../src/agents/immune-system/checks/regression-check.js';
+import { runDependencyCheck } from '../../../src/agents/immune-system/checks/dependency-check.js';
 
 const mockRunCommand = vi.mocked(runCommand);
 const mockCollectCodeQuality = vi.mocked(collectCodeQuality);
@@ -389,5 +412,223 @@ describe('runPerformanceCheck', () => {
     // With no baselines and fast execution, should pass
     expect(result.status).toBe('pass');
     expect(result.message).toContain('pulse:');
+  });
+});
+
+// ── boundary-check ────────────────────────────────────────────────
+
+describe('runBoundaryCheck', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    restoreGitMocks();
+  });
+
+  it('returns pass when no forbidden zone concepts in diff', async () => {
+    mockGit.diff
+      .mockResolvedValueOnce('src/utils.ts\n') // --name-only
+      .mockResolvedValueOnce(
+        '+++ b/src/utils.ts\n+export function add(a: number, b: number) {\n+  return a + b;\n+}\n',
+      ); // full diff
+
+    const configWithForbidden: OrganismConfig = {
+      ...mockConfig,
+      boundaries: {
+        growth_zone: [],
+        forbidden_zone: ['modifying the target repository', 'accessing external APIs'],
+      },
+    };
+
+    const result = await runBoundaryCheck('/repo', 'feature/test', configWithForbidden);
+
+    expect(result.status).toBe('pass');
+    expect(result.name).toBe('Boundary');
+    expect(result.message).toBe('No boundary violations detected');
+  });
+
+  it('returns fail when forbidden zone keyword found in diff', async () => {
+    mockGit.diff
+      .mockResolvedValueOnce('src/deploy.ts\n') // --name-only
+      .mockResolvedValueOnce(
+        '+++ b/src/deploy.ts\n+  await git push origin main\n+  console.log("pushed")\n',
+      ); // full diff
+
+    const configWithForbidden: OrganismConfig = {
+      ...mockConfig,
+      boundaries: {
+        growth_zone: [],
+        forbidden_zone: ['modifying the target repository'],
+      },
+    };
+
+    const result = await runBoundaryCheck('/repo', 'feature/deploy', configWithForbidden);
+
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('Forbidden zone violation');
+    expect(result.message).toContain('modifying the target repository');
+  });
+
+  it('returns warn when package.json changed with new deps', async () => {
+    mockGit.diff
+      .mockResolvedValueOnce('package.json\nsrc/index.ts\n') // --name-only
+      .mockResolvedValueOnce('+  return 1;\n') // full diff (no forbidden keywords)
+      .mockResolvedValueOnce(
+        '+++ b/package.json\n+    "lodash": "^4.17.21"\n+    "zod": "^3.22.0"\n',
+      ); // package.json diff
+
+    const result = await runBoundaryCheck('/repo', 'feature/add-deps', mockConfig);
+
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('2 new dependencies added');
+    expect(result.message).toContain('lodash');
+    expect(result.message).toContain('zod');
+  });
+
+  it('returns pass when no changes detected', async () => {
+    mockGit.diff.mockResolvedValueOnce(''); // --name-only returns empty
+
+    const result = await runBoundaryCheck('/repo', 'feature/empty', mockConfig);
+
+    expect(result.status).toBe('pass');
+    expect(result.message).toBe('No changes detected');
+  });
+});
+
+// ── regression-check ──────────────────────────────────────────────
+
+describe('runRegressionCheck', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    restoreGitMocks();
+  });
+
+  const mockRegressionContext: RegressionContext = {
+    fragile_files: [
+      { path: 'src/auth.ts', regression_count: 3, last_regression: '2026-03-01', notes: 'frequent auth bugs' },
+      { path: 'src/utils.ts', regression_count: 1, last_regression: '2026-02-15', notes: 'minor issue' },
+    ],
+  };
+
+  it('returns pass when no regression context provided', async () => {
+    const result = await runRegressionCheck('/repo', 'feature/test', null);
+
+    expect(result.status).toBe('pass');
+    expect(result.name).toBe('Regression');
+    expect(result.message).toBe('No regression history available');
+  });
+
+  it('returns fail when changed file has 3+ regressions', async () => {
+    mockGit.diff.mockResolvedValueOnce('src/auth.ts\nsrc/index.ts\n');
+
+    const result = await runRegressionCheck('/repo', 'feature/auth-change', mockRegressionContext);
+
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('High-risk file modified: src/auth.ts');
+    expect(result.message).toContain('3 previous regressions');
+  });
+
+  it('returns warn when changed file has 1-2 regressions', async () => {
+    mockGit.diff.mockResolvedValueOnce('src/utils.ts\nsrc/index.ts\n');
+
+    const result = await runRegressionCheck('/repo', 'feature/utils-change', mockRegressionContext);
+
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('Fragile file modified: src/utils.ts');
+    expect(result.message).toContain('1 previous regressions');
+  });
+
+  it('returns pass when no fragile files in changed set', async () => {
+    mockGit.diff.mockResolvedValueOnce('src/index.ts\nsrc/new-feature.ts\n');
+
+    const result = await runRegressionCheck('/repo', 'feature/safe', mockRegressionContext);
+
+    expect(result.status).toBe('pass');
+    expect(result.message).toBe('No known fragile files touched');
+  });
+
+  it('returns pass when fragile_files list is empty', async () => {
+    mockGit.diff.mockResolvedValueOnce('src/auth.ts\n');
+
+    const emptyContext: RegressionContext = { fragile_files: [] };
+    const result = await runRegressionCheck('/repo', 'feature/test', emptyContext);
+
+    expect(result.status).toBe('pass');
+    expect(result.message).toBe('No regression history available');
+  });
+});
+
+// ── dependency-check ──────────────────────────────────────────────
+
+describe('runDependencyCheck', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    restoreGitMocks();
+  });
+
+  it('returns pass when no new dependencies', async () => {
+    const pkg = JSON.stringify({ dependencies: { chalk: '^5.0.0' }, devDependencies: { vitest: '^1.0.0' } });
+    mockGit.show
+      .mockResolvedValueOnce(pkg) // main:package.json
+      .mockResolvedValueOnce(pkg); // branch:package.json
+
+    const result = await runDependencyCheck('/repo', 'feature/no-deps');
+
+    expect(result.status).toBe('pass');
+    expect(result.name).toBe('Dependencies');
+    expect(result.message).toBe('No new dependencies');
+  });
+
+  it('returns warn when new dependency added (no vulnerability)', async () => {
+    const mainPkg = JSON.stringify({ dependencies: { chalk: '^5.0.0' } });
+    const branchPkg = JSON.stringify({ dependencies: { chalk: '^5.0.0', lodash: '^4.17.21' } });
+
+    mockGit.show
+      .mockResolvedValueOnce(mainPkg)
+      .mockResolvedValueOnce(branchPkg);
+
+    mockRunCommand.mockReturnValueOnce({
+      stdout: JSON.stringify({ vulnerabilities: {} }),
+      stderr: '',
+      status: 0,
+    });
+
+    const result = await runDependencyCheck('/repo', 'feature/add-lodash');
+
+    expect(result.status).toBe('warn');
+    expect(result.message).toContain('1 new dependencies added');
+    expect(result.message).toContain('lodash');
+  });
+
+  it('returns fail when new dependency has vulnerability', async () => {
+    const mainPkg = JSON.stringify({ dependencies: { chalk: '^5.0.0' } });
+    const branchPkg = JSON.stringify({ dependencies: { chalk: '^5.0.0', 'vulnerable-pkg': '^1.0.0' } });
+
+    mockGit.show
+      .mockResolvedValueOnce(mainPkg)
+      .mockResolvedValueOnce(branchPkg);
+
+    mockRunCommand.mockReturnValueOnce({
+      stdout: JSON.stringify({
+        vulnerabilities: {
+          'vulnerable-pkg': { severity: 'high' },
+        },
+      }),
+      stderr: '',
+      status: 0,
+    });
+
+    const result = await runDependencyCheck('/repo', 'feature/add-vuln');
+
+    expect(result.status).toBe('fail');
+    expect(result.message).toContain('known vulnerabilities');
+    expect(result.message).toContain('vulnerable-pkg');
+  });
+
+  it('returns pass when package.json not on main', async () => {
+    mockGit.show.mockRejectedValueOnce(new Error('not found'));
+
+    const result = await runDependencyCheck('/repo', 'feature/init');
+
+    expect(result.status).toBe('pass');
+    expect(result.message).toBe('No package.json on main branch');
   });
 });
