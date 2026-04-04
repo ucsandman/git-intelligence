@@ -5,6 +5,10 @@ import { executeGhosts } from './commands/ghosts.js';
 import { executeSense } from './cli/sense.js';
 import { executeReview } from './cli/review.js';
 import { executeRemember } from './cli/remember.js';
+import { executePlan } from './cli/plan.js';
+import { executeBuild } from './cli/build.js';
+import { executeCycle } from './cli/cycle.js';
+import { executeOrganism } from './cli/organism.js';
 
 process.on('unhandledRejection', (reason, _promise) => {
   console.error('Unhandled Rejection:', reason);
@@ -91,5 +95,45 @@ program
       await executeRemember(subcommand, args, options);
     },
   );
+
+program
+  .command('plan')
+  .description('Generate a prioritized cycle plan based on current state')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .option('--dry-run', 'Show plan without saving')
+  .action(async (options: { json?: boolean; path?: string; dryRun?: boolean }) => {
+    await executePlan(options);
+  });
+
+program
+  .command('build [item-id]')
+  .description('Implement a work item from the cycle plan')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .option('--all', 'Build all items in the current plan')
+  .action(async (itemId: string | undefined, options: { json?: boolean; path?: string; all?: boolean }) => {
+    await executeBuild(itemId, options);
+  });
+
+program
+  .command('cycle')
+  .description('Run a complete lifecycle cycle')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .option('--supervised', 'Require human approval before merging')
+  .action(async (options: { json?: boolean; path?: string; supervised?: boolean }) => {
+    await executeCycle(options);
+  });
+
+program
+  .command('organism <subcommand>')
+  .description('Manage the organism (start, stop, status)')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .option('--interval <duration>', 'Cycle interval (e.g., 24h, 12h, 1h)', '24h')
+  .action(async (subcommand: string, options: { json?: boolean; path?: string; interval?: string }) => {
+    await executeOrganism(subcommand, options);
+  });
 
 program.parse();
