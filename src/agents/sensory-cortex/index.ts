@@ -187,7 +187,9 @@ export async function runSensoryCortex(repoPath: string): Promise<{ report: Stat
 
   // 10. Write report to disk
   await ensureOrganismDir(repoPath, REPORTS_SUBDIR);
-  const reportPath = getOrganismPath(repoPath, REPORTS_SUBDIR, `${timestamp}.json`);
+  // Replace colons with dashes so the filename is valid on Windows
+  const safeTimestamp = timestamp.replace(/:/g, '-');
+  const reportPath = getOrganismPath(repoPath, REPORTS_SUBDIR, `${safeTimestamp}.json`);
   await writeJsonFile(reportPath, report);
 
   // 11. Return
