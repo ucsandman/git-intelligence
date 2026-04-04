@@ -27,6 +27,7 @@ export default defineConfig({
         'src/agents/growth-hormone/types.ts',
         'src/simulator/types.ts',
         'src/integrations/openclaw/types.ts',
+        'src/integrations/dashclaw/types.ts',
         'src/telemetry/types.ts',
       ],
       thresholds: {
