@@ -28,6 +28,7 @@ export default defineConfig({
         'src/simulator/types.ts',
         'src/integrations/openclaw/types.ts',
         'src/integrations/dashclaw/types.ts',
+        'src/integrations/github/types.ts',
         'src/telemetry/types.ts',
       ],
       thresholds: {
