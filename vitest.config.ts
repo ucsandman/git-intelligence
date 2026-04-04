@@ -19,6 +19,7 @@ export default defineConfig({
         'src/agents/memory/index.ts',
         'src/agents/memory/formatter.ts',
         'src/agents/memory/types.ts',
+        'src/agents/prefrontal-cortex/types.ts',
         'src/agents/types.ts',
       ],
       thresholds: {
