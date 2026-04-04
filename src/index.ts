@@ -12,6 +12,7 @@ import { executeOrganism } from './cli/organism.js';
 import { executeTelemetry } from './cli/telemetry-cmd.js';
 import { executeSimulate } from './cli/simulate.js';
 import { executeGrow } from './cli/grow.js';
+import { executeDispatch } from './cli/dispatch.js';
 
 process.on('unhandledRejection', (reason, _promise) => {
   console.error('Unhandled Rejection:', reason);
@@ -167,6 +168,18 @@ program
   .option('--show [proposal-id]', 'Show existing proposals')
   .action(async (options: { json?: boolean; path?: string; show?: boolean | string }) => {
     await executeGrow(options);
+  });
+
+program
+  .command('dispatch')
+  .description('View evolution dispatches (content pipeline)')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .option('--cycle <n>', 'Show dispatch for a specific cycle')
+  .option('--list', 'List all dispatches')
+  .option('--platform <name>', 'Format for platform (twitter, linkedin, hn, blog)')
+  .action(async (options: { json?: boolean; path?: string; cycle?: string; list?: boolean; platform?: string }) => {
+    await executeDispatch(options);
   });
 
 program.parse();
