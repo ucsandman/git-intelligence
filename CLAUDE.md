@@ -15,7 +15,7 @@ A CLI tool that transforms raw git repository data into actionable intelligence,
 - `npm run lint` — type-check with tsc --noEmit
 - `npm run dev` — watch mode build
 
-## CLI Commands (10 total)
+## CLI Commands (13 total)
 - `giti pulse` — repo health snapshot
 - `giti hotspots` — volatile file detection with coupling
 - `giti ghosts` — abandoned work detection
@@ -26,6 +26,9 @@ A CLI tool that transforms raw git repository data into actionable intelligence,
 - `giti build [id]` — motor cortex code implementation (requires ANTHROPIC_API_KEY)
 - `giti cycle` — full lifecycle cycle (requires ANTHROPIC_API_KEY)
 - `giti organism <sub>` — organism management (start, stop, status)
+- `giti telemetry <sub>` — telemetry management (on, off, status, show, clear)
+- `giti simulate` — generate synthetic telemetry from diverse repo types
+- `giti grow` — Growth Hormone agent (analyze telemetry, propose features)
 
 ## Architecture
 
@@ -46,28 +49,40 @@ A CLI tool that transforms raw git repository data into actionable intelligence,
 - `src/agents/motor-cortex/` — builder: Claude API integration, structured prompt→response, self-correction loop (max 2 attempts), branch management
 - `src/agents/orchestrator/` — lifecycle: full cycle (sense→plan→build→review→commit→reflect), safety systems (kill switch, cooldown, lock, failures, API budget), scheduler
 
+### Sprint 3: Enable Growth
+- `src/telemetry/` — opt-in anonymous usage data: types, store (JSON-lines), anonymizer (SHA-256 hashing, path stripping), collector (command instrumentation), reporter (aggregation)
+- `src/simulator/` — synthetic telemetry: repo-generator (6 repo types: fresh, small, medium, large, monorepo, ancient), scenarios, simulation runner
+- `src/agents/growth-hormone/` — feature proposal agent: signal-analyzer (6 signal types: usage-concentration, usage-sequence, error-pattern, flag-pattern, missing-capability, ecosystem-signal), proposal-generator (Claude API), orchestrator, formatter
+- Lifecycle GROW phase added to `src/agents/orchestrator/cycle.ts` — runs Growth Hormone after the standard sense→plan→build→review cycle
+- Prefrontal Cortex Tier 5 integration — approved growth proposals become work items in `src/agents/prefrontal-cortex/prioritizer.ts`
+
 ### Shared Infrastructure
 - `src/agents/types.ts` — AgentRole, OrganismEvent, EventType, OrganismConfig
 - `src/agents/utils.ts` — filesystem ops (readJsonFile, writeJsonFile, ensureOrganismDir), runCommand (execFileSync)
-- `src/cli/` — CLI entrypoints for all 10 commands
+- `src/cli/` — CLI entrypoints for all 13 commands
 - `src/integrations/openclaw/` — optional tracing (env-gated via OPENCLAW_API_KEY)
 
 ## Data Flow
 ```
 .organism/
-├── state-reports/      # Sensory cortex outputs (JSON, timestamped)
-├── reviews/            # Immune system verdicts (JSON, per-branch)
-├── backlog/            # Work items and cycle plans (JSON)
-├── knowledge-base.json # Memory agent curated knowledge
-├── baselines.json      # Quality/performance baselines
-├── cycle-counter.json  # Monotonic cycle number
-├── api-usage.json      # Token budget tracking
-├── cooldown-until.json # Post-regression cooldown expiry
-├── active-cycle.json   # Concurrent execution lock
-├── kill-switch         # Organism halt signal (presence = stopped)
-├── scheduler.json      # Running scheduler config
-├── cycle-history/      # Completed cycle results
-└── traces/             # OpenClaw trace files (local fallback)
+├── state-reports/        # Sensory cortex outputs (JSON, timestamped)
+├── reviews/              # Immune system verdicts (JSON, per-branch)
+├── backlog/              # Work items and cycle plans (JSON)
+├── growth-proposals/     # Growth Hormone proposals (JSON, per-proposal)
+├── knowledge-base.json   # Memory agent curated knowledge
+├── baselines.json        # Quality/performance baselines
+├── cycle-counter.json    # Monotonic cycle number
+├── api-usage.json        # Token budget tracking
+├── cooldown-until.json   # Post-regression cooldown expiry
+├── active-cycle.json     # Concurrent execution lock
+├── kill-switch           # Organism halt signal (presence = stopped)
+├── scheduler.json        # Running scheduler config
+├── cycle-history/        # Completed cycle results
+└── traces/               # OpenClaw trace files (local fallback)
+
+~/.giti/
+├── telemetry-config.json # User opt-in preference
+└── telemetry-events.jsonl # Anonymized usage events (JSON-lines)
 ```
 
 ## Quality Standards (from organism.json)

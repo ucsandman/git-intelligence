@@ -32,13 +32,21 @@ See `docs/superpowers/plans/2026-04-04-sprint1-safety-layer.md` for full plan.
 
 See `docs/superpowers/plans/2026-04-04-sprint2-activate-organism.md` for full plan.
 
-## Sprint 3 — Enable Growth (NEXT)
-- [ ] Implement Growth Hormone agent
-- [ ] Add opt-in telemetry system
-- [ ] Build DashClaw evolutionary timeline
-- [ ] Build DashClaw cognitive map
-- [ ] Run daily autonomous cycles
-- [ ] Document first autonomous feature
+## Sprint 3 — Enable Growth (COMPLETE)
+- [x] Telemetry types and store (JSON-lines, user config)
+- [x] Telemetry anonymizer (SHA-256 hashing, path/hostname stripping)
+- [x] Telemetry collector and reporter (command instrumentation, aggregation)
+- [x] Usage simulator (6 repo types, scenario-based synthetic data)
+- [x] Growth Hormone signal analyzer (6 signal types from telemetry)
+- [x] Growth Hormone proposal generator (Claude API structured prompts)
+- [x] Growth Hormone orchestrator and formatter (pipeline, CLI output)
+- [x] Prefrontal Cortex Tier 5 integration (approved proposals become work items)
+- [x] Lifecycle GROW phase (runs after standard cycle)
+- [x] CLI entrypoints: `giti telemetry`, `giti simulate`, `giti grow`
+- [x] TELEMETRY.md privacy documentation
+- [x] Integration testing (569 tests, 13 CLI commands, 90%+ coverage)
+
+See `docs/superpowers/plans/2026-04-04-sprint3-enable-growth.md` for full plan.
 
 ## Sprint 4 — Release the Organism (FUTURE)
 - [ ] Remove human oversight requirement

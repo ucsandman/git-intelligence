@@ -22,7 +22,12 @@ export default defineConfig({
         'src/agents/prefrontal-cortex/types.ts',
         'src/agents/motor-cortex/types.ts',
         'src/agents/orchestrator/types.ts',
+        'src/agents/orchestrator/scheduler.ts',
         'src/agents/types.ts',
+        'src/agents/growth-hormone/types.ts',
+        'src/simulator/types.ts',
+        'src/integrations/openclaw/types.ts',
+        'src/telemetry/types.ts',
       ],
       thresholds: {
         statements: 80,

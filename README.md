@@ -184,6 +184,65 @@ giti organism stop                 # Activate kill switch
 giti organism status               # View organism state
 ```
 
+### Growth & Telemetry Commands
+
+#### `giti telemetry <subcommand>`
+
+Manage anonymous, opt-in usage telemetry. All data is anonymized before storage — no paths, hostnames, or identifying information is retained.
+
+```bash
+giti telemetry status   # Check if telemetry is enabled and event count
+giti telemetry on       # Opt in to telemetry collection
+giti telemetry off      # Opt out and stop collecting
+giti telemetry show     # Display aggregated telemetry report
+giti telemetry clear    # Delete all collected telemetry data
+```
+
+See [TELEMETRY.md](./TELEMETRY.md) for full details on what is collected and how data is anonymized.
+
+#### `giti simulate`
+
+Generate synthetic telemetry data from diverse simulated repositories. Useful for testing the Growth Hormone agent without real usage data.
+
+```bash
+giti simulate                     # Run simulation with all repo types
+giti simulate --scenario small    # Simulate a small project
+giti simulate --runs 50           # Generate 50 simulated command runs
+```
+
+Scenarios: `small`, `medium`, `large`, `monorepo`, `ancient`, `fresh`
+
+#### `giti grow`
+
+Run the Growth Hormone agent — analyzes telemetry data to detect usage patterns and proposes new features or improvements.
+
+```bash
+giti grow                # Analyze telemetry and propose features
+giti grow --dry-run      # Preview signals without generating proposals
+```
+
+```
+🌱 Growth Hormone Analysis
+───────────────────────────
+Telemetry signals detected: 2
+
+  1. [85%] pulse dominates usage
+     Evidence: 60% of all command runs
+
+  2. [72%] JSON output rarely used
+     Evidence: Only 3% of runs use --json
+
+New proposals generated: 1
+
+  1. Add timeline command
+     Complexity: medium
+     Command: giti timeline
+
+Next: Proposals will be reviewed by Immune System, then scheduled by Prefrontal Cortex
+```
+
+Proposals require `ANTHROPIC_API_KEY` for generation. Without it, the command still detects signals but skips proposal generation.
+
 ### Global Options
 
 All commands support:
@@ -234,7 +293,10 @@ src/
 │   ├── memory/         # Sprint 1: persistent knowledge base and curator
 │   ├── prefrontal-cortex/ # Sprint 2: strategic planning and prioritization
 │   ├── motor-cortex/   # Sprint 2: Claude API code generation with self-correction
-│   └── orchestrator/   # Sprint 2: lifecycle cycle, safety, scheduling
+│   ├── orchestrator/   # Sprint 2: lifecycle cycle, safety, scheduling
+│   └── growth-hormone/ # Sprint 3: telemetry signal analysis and feature proposals
+├── telemetry/          # Sprint 3: opt-in anonymous usage data collection
+├── simulator/          # Sprint 3: synthetic repo generation for testing
 └── integrations/
     └── openclaw/       # Sprint 2: optional observability instrumentation
 ```
@@ -248,6 +310,7 @@ This project is a software organism. It starts as a CLI tool, but unlike any oth
 - **Motor Cortex** writes the code (using Claude)
 - **Immune System** reviews every change adversarially
 - **Memory** learns from every decision and outcome
+- **Growth Hormone** detects usage patterns and proposes new features
 
 The human creates the seed. From that point forward, the codebase is alive. Read the full vision in [living-codebase-architecture.md](./living-codebase-architecture.md).
 
