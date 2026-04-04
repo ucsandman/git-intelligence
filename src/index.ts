@@ -9,6 +9,9 @@ import { executePlan } from './cli/plan.js';
 import { executeBuild } from './cli/build.js';
 import { executeCycle } from './cli/cycle.js';
 import { executeOrganism } from './cli/organism.js';
+import { executeTelemetry } from './cli/telemetry-cmd.js';
+import { executeSimulate } from './cli/simulate.js';
+import { executeGrow } from './cli/grow.js';
 
 process.on('unhandledRejection', (reason, _promise) => {
   console.error('Unhandled Rejection:', reason);
@@ -134,6 +137,36 @@ program
   .option('--interval <duration>', 'Cycle interval (e.g., 24h, 12h, 1h)', '24h')
   .action(async (subcommand: string, options: { json?: boolean; path?: string; interval?: string }) => {
     await executeOrganism(subcommand, options);
+  });
+
+program
+  .command('telemetry <subcommand>')
+  .description('Manage telemetry settings (on, off, status, show, clear)')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .option('--last <n>', 'Number of recent events to show')
+  .action(async (subcommand: string, options: { json?: boolean; path?: string; last?: string }) => {
+    await executeTelemetry(subcommand, options);
+  });
+
+program
+  .command('simulate')
+  .description('Generate synthetic telemetry from diverse repos')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Target repo for telemetry output')
+  .option('--scenarios <n>', 'Number of scenarios to run', '20')
+  .action(async (options: { json?: boolean; path?: string; scenarios?: string }) => {
+    await executeSimulate(options);
+  });
+
+program
+  .command('grow')
+  .description('Run Growth Hormone — analyze telemetry and propose features')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .option('--show [proposal-id]', 'Show existing proposals')
+  .action(async (options: { json?: boolean; path?: string; show?: boolean | string }) => {
+    await executeGrow(options);
   });
 
 program.parse();
