@@ -26,3 +26,14 @@
 - JSON-lines (`.jsonl`) format is simpler than SQLite for append-only telemetry stores — one JSON object per line, easy to read/write without dependencies
 - Growth Hormone proposals use structured Claude API output — `buildProposalPrompt` creates the system+user messages, `parseProposalResponse` validates the JSON response against the GrowthProposal schema
 - Simulator repo-generator creates real git repos in temp directories — tests that use it are slow (~2-5s per repo type), so mock for unit tests and only use real repos in integration tests
+
+## Sprint 4
+- npm workspaces monorepo migration: move package sources into `packages/<name>/` subdirectories, keep root `package.json` with `"workspaces": ["packages/*"]`, and root scripts that delegate via `--workspaces`
+- After monorepo migration, `organism.json` must remain at repo root (not inside package directory) because CLI commands resolve it relative to `process.cwd()`
+- `@octokit/rest` requires authentication token for write operations (PR create, issue update) but read operations work unauthenticated for public repos — mock the Octokit constructor in tests using `vi.mock`
+- DashClaw fitness score: weight categories (tests, quality, performance, dependency health) and compute a 0-100 composite — easier to reason about than multiple separate metrics
+- Content pipeline narrative generation: use structured templates with slot-filling rather than free-form LLM generation — faster, deterministic, and testable without API keys
+- Platform formatters (twitter, linkedin, hn, blog) should enforce character limits and format constraints at the formatter level, not in the generator — separation of concerns
+- Framework extraction: start with types and schema validation only — resist the urge to extract agent logic until the API surface stabilizes
+- Organism JSON schema validator: use explicit field-by-field validation rather than JSON Schema library — keeps the framework dependency-free and the error messages precise
+- When extracting a package to a monorepo, ensure `tsup.config.ts` and `vitest.config.ts` are present in each package directory — workspace commands delegate to each package's own scripts

@@ -4,6 +4,13 @@
 
 A CLI tool that transforms raw git repository data into actionable intelligence — and a living codebase that maintains and evolves itself through AI agents.
 
+This is a **monorepo** with two packages:
+
+| Package | Description |
+|---------|-------------|
+| [`packages/giti/`](./packages/giti/) | The CLI organism — 14 commands, 697 tests |
+| [`packages/livingcode-core/`](./packages/livingcode-core/) | The Living Codebase framework — organism schema, validator, types |
+
 ## Installation
 
 ```bash
@@ -212,6 +219,19 @@ giti simulate --runs 50           # Generate 50 simulated command runs
 
 Scenarios: `small`, `medium`, `large`, `monorepo`, `ancient`, `fresh`
 
+#### `giti dispatch`
+
+View evolution dispatches from the content pipeline — narratives about what the organism has built, learned, and proposed.
+
+```bash
+giti dispatch                      # Show latest dispatch
+giti dispatch --list               # List all dispatches
+giti dispatch --cycle 5            # Show dispatch for cycle 5
+giti dispatch --platform twitter   # Format for Twitter
+```
+
+Platforms: `twitter`, `linkedin`, `hn`, `blog`
+
 #### `giti grow`
 
 Run the Growth Hormone agent — analyzes telemetry data to detect usage patterns and proposes new features or improvements.
@@ -277,28 +297,41 @@ The organism has multiple safety mechanisms:
 - **Immune System** — every change must pass 6 independent quality checks before merging
 - **Supervised mode** — optional human approval gate before any merge
 
-## Architecture
+## Project Structure
 
 ```
-src/
-├── commands/           # Sprint 0: pulse, hotspots, ghosts command handlers
-├── analyzers/          # Sprint 0: commit, branch, file, code analysis
-├── formatters/         # Sprint 0: chalk terminal output formatting
-├── utils/              # Shared: git wrapper, time formatting
-├── types/              # Shared: TypeScript interfaces
-├── cli/                # CLI entrypoints for all commands
-├── agents/
-│   ├── sensory-cortex/ # Sprint 1: state observation and trend detection
-│   ├── immune-system/  # Sprint 1: adversarial review with 6 quality checks
-│   ├── memory/         # Sprint 1: persistent knowledge base and curator
-│   ├── prefrontal-cortex/ # Sprint 2: strategic planning and prioritization
-│   ├── motor-cortex/   # Sprint 2: Claude API code generation with self-correction
-│   ├── orchestrator/   # Sprint 2: lifecycle cycle, safety, scheduling
-│   └── growth-hormone/ # Sprint 3: telemetry signal analysis and feature proposals
-├── telemetry/          # Sprint 3: opt-in anonymous usage data collection
-├── simulator/          # Sprint 3: synthetic repo generation for testing
-└── integrations/
-    └── openclaw/       # Sprint 2: optional observability instrumentation
+git-intelligence/                   # Monorepo root (npm workspaces)
+├── packages/
+│   ├── giti/                       # CLI organism package
+│   │   └── src/
+│   │       ├── commands/           # Sprint 0: pulse, hotspots, ghosts handlers
+│   │       ├── analyzers/          # Sprint 0: commit, branch, file, code analysis
+│   │       ├── formatters/         # Sprint 0: chalk terminal output formatting
+│   │       ├── utils/              # Shared: git wrapper, time formatting
+│   │       ├── types/              # Shared: TypeScript interfaces
+│   │       ├── cli/                # CLI entrypoints for all 14 commands
+│   │       ├── agents/
+│   │       │   ├── sensory-cortex/ # Sprint 1: state observation and trend detection
+│   │       │   ├── immune-system/  # Sprint 1: adversarial review with 6 quality checks
+│   │       │   ├── memory/         # Sprint 1: persistent knowledge base and curator
+│   │       │   ├── prefrontal-cortex/ # Sprint 2: strategic planning and prioritization
+│   │       │   ├── motor-cortex/   # Sprint 2: Claude API code generation with self-correction
+│   │       │   ├── orchestrator/   # Sprint 2: lifecycle cycle, safety, scheduling
+│   │       │   └── growth-hormone/ # Sprint 3: telemetry signal analysis and feature proposals
+│   │       ├── telemetry/          # Sprint 3: opt-in anonymous usage data collection
+│   │       ├── simulator/          # Sprint 3: synthetic repo generation for testing
+│   │       ├── content/            # Sprint 4: dispatch generation, narratives, milestones
+│   │       └── integrations/
+│   │           ├── openclaw/       # Sprint 2: optional observability instrumentation
+│   │           ├── dashclaw/       # Sprint 4: DashClaw dashboard (fitness score, reporting)
+│   │           └── github/         # Sprint 4: GitHub integration (PRs, issues, releases)
+│   └── livingcode-core/            # Sprint 4: extracted framework package
+│       └── src/
+│           ├── types.ts            # Framework types (OrganismConfig, OrganismManifest)
+│           └── schema/             # organism.json schema and validator
+├── organism.json                   # Organism manifest
+├── .organism/                      # Runtime state (reports, backlog, knowledge, traces)
+└── tasks/                          # Session tracking (todo.md, lessons.md)
 ```
 
 ## The Living Codebase
@@ -316,13 +349,20 @@ The human creates the seed. From that point forward, the codebase is alive. Read
 
 ## Development
 
+This project uses npm workspaces. All commands run from the repo root:
+
 ```bash
-npm install          # Install dependencies
-npm run build        # Build with tsup
-npm test             # Run tests
-npm run test:coverage # Run with coverage (80% threshold)
-npm run lint         # Type-check with tsc
-npm run dev          # Watch mode build
+npm install          # Install dependencies for all packages
+npm run build        # Build all packages with tsup
+npm test             # Run all tests (712 total: 697 giti + 15 framework)
+npm run lint         # Type-check all packages with tsc
+```
+
+For individual packages:
+
+```bash
+cd packages/giti && npm test              # Run giti tests only
+cd packages/livingcode-core && npm test   # Run framework tests only
 ```
 
 ## Contributing

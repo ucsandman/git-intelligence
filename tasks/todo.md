@@ -48,7 +48,20 @@ See `docs/superpowers/plans/2026-04-04-sprint2-activate-organism.md` for full pl
 
 See `docs/superpowers/plans/2026-04-04-sprint3-enable-growth.md` for full plan.
 
-## Sprint 4 — Release the Organism (FUTURE)
+## Sprint 4 — Release the Organism (COMPLETE)
+- [x] DashClaw decision dashboard: fitness score calculator, cycle reporter, push config
+- [x] GitHub integration: @octokit/rest client, PR formatter, issue triage, release notes
+- [x] Integrate GitHub PR workflow into lifecycle cycle
+- [x] Content pipeline: dispatch generator, narrative engine, milestone detection, platform formatting
+- [x] CLI entrypoint: `giti dispatch` (evolution narratives)
+- [x] Framework extraction: `@livingcode/core` package with organism.json schema and validator
+- [x] Monorepo migration: npm workspaces (`packages/giti/` + `packages/livingcode-core/`)
+- [x] Integration testing (712 tests total: 697 giti + 15 framework, 14 CLI commands)
+
+See `docs/superpowers/plans/` for sprint plans.
+
+## Sprint 5 — (FUTURE)
 - [ ] Remove human oversight requirement
-- [ ] Build DashClaw decision log
-- [ ] Open source the organism framework
+- [ ] npm publish @livingcode/core
+- [ ] npm publish giti
+- [ ] CI/CD pipeline (GitHub Actions)

@@ -1,21 +1,21 @@
 # giti — Git Intelligence CLI
 
 ## What This Is
-A CLI tool that transforms raw git repository data into actionable intelligence, and a living codebase that maintains and evolves itself through AI agents. Built across 3 sprints: analysis CLI, safety layer, autonomous lifecycle.
+A CLI tool that transforms raw git repository data into actionable intelligence, and a living codebase that maintains and evolves itself through AI agents. Built across 4 sprints: analysis CLI, safety layer, autonomous lifecycle, and release infrastructure. This is an npm workspaces monorepo with two packages: `packages/giti/` (the CLI organism) and `packages/livingcode-core/` (the extracted framework).
 
 ## Tech Stack
 - TypeScript (strict mode, ESM), Node.js >= 18
 - tsup (build), vitest (test), commander (CLI), simple-git (git ops)
 - chalk (colors), ora (spinners), @anthropic-ai/sdk (Motor Cortex code generation)
+- npm workspaces (monorepo), @octokit/rest (GitHub integration)
 
 ## Dev Commands
-- `npm run build` — build with tsup
-- `npm test` — run tests with vitest
-- `npm run test:coverage` — run with coverage (80% threshold)
-- `npm run lint` — type-check with tsc --noEmit
-- `npm run dev` — watch mode build
+All commands run from the repo root via npm workspaces:
+- `npm run build` — build all packages with tsup
+- `npm test` — run all tests (712 total: 697 giti + 15 framework)
+- `npm run lint` — type-check all packages with tsc --noEmit
 
-## CLI Commands (13 total)
+## CLI Commands (14 total)
 - `giti pulse` — repo health snapshot
 - `giti hotspots` — volatile file detection with coupling
 - `giti ghosts` — abandoned work detection
@@ -29,6 +29,7 @@ A CLI tool that transforms raw git repository data into actionable intelligence,
 - `giti telemetry <sub>` — telemetry management (on, off, status, show, clear)
 - `giti simulate` — generate synthetic telemetry from diverse repo types
 - `giti grow` — Growth Hormone agent (analyze telemetry, propose features)
+- `giti dispatch` — view evolution dispatches (content pipeline narratives)
 
 ## Architecture
 
@@ -56,10 +57,17 @@ A CLI tool that transforms raw git repository data into actionable intelligence,
 - Lifecycle GROW phase added to `src/agents/orchestrator/cycle.ts` — runs Growth Hormone after the standard sense→plan→build→review cycle
 - Prefrontal Cortex Tier 5 integration — approved growth proposals become work items in `src/agents/prefrontal-cortex/prioritizer.ts`
 
+### Sprint 4: Release the Organism
+- `src/integrations/dashclaw/` — DashClaw decision dashboard: fitness score calculator, cycle reporter, push config
+- `src/integrations/github/` — GitHub integration: @octokit/rest client, PR formatter, issue triage, release notes generator
+- `src/content/` — Content pipeline: dispatch generator, narrative engine, milestone detection, platform formatter (twitter/linkedin/hn/blog)
+- `packages/livingcode-core/` — Extracted framework: organism.json schema, validator, and shared types (OrganismConfig, OrganismManifest)
+- Monorepo migration: npm workspaces with `packages/giti/` and `packages/livingcode-core/`
+
 ### Shared Infrastructure
 - `src/agents/types.ts` — AgentRole, OrganismEvent, EventType, OrganismConfig
 - `src/agents/utils.ts` — filesystem ops (readJsonFile, writeJsonFile, ensureOrganismDir), runCommand (execFileSync)
-- `src/cli/` — CLI entrypoints for all 13 commands
+- `src/cli/` — CLI entrypoints for all 14 commands
 - `src/integrations/openclaw/` — optional tracing (env-gated via OPENCLAW_API_KEY)
 
 ## Data Flow
