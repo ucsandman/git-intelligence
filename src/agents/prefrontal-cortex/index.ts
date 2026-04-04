@@ -3,7 +3,8 @@ import type { CyclePlan } from './types.js';
 import { loadOrganismConfig, readJsonFile, getOrganismPath } from '../utils.js';
 import { loadKnowledgeBase } from '../memory/store.js';
 import { loadBacklog, saveWorkItem, saveCyclePlan } from './backlog.js';
-import { generateWorkItems, prioritizeItems } from './prioritizer.js';
+import { generateWorkItems, prioritizeItems, generateGrowthItems } from './prioritizer.js';
+import { loadApprovedProposals } from '../growth-hormone/index.js';
 
 interface CooldownFile {
   until: string;
@@ -53,6 +54,17 @@ export async function runPrefrontalCortex(
 
   // Step 5: Generate new work items from the current state report
   const newItems = generateWorkItems(stateReport, config, kb);
+
+  // Step 5b: Load approved growth proposals and convert to Tier 5 work items
+  try {
+    const approvedProposals = await loadApprovedProposals(repoPath);
+    if (approvedProposals.length > 0) {
+      const growthItems = generateGrowthItems(approvedProposals, kb);
+      newItems.push(...growthItems);
+    }
+  } catch {
+    // Growth proposal loading failure is non-critical
+  }
 
   // Step 6: Merge new items with existing backlog (skip duplicates by title similarity)
   const deduped = newItems.filter(

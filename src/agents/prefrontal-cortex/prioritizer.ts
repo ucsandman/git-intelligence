@@ -3,6 +3,7 @@ import type { StateReport } from '../sensory-cortex/types.js';
 import type { OrganismConfig } from '../types.js';
 import type { KnowledgeBase } from '../memory/types.js';
 import type { WorkItem } from './types.js';
+import type { GrowthProposal } from '../growth-hormone/types.js';
 
 /**
  * Parse a performance budget string like "< 2 seconds on repos up to 10k commits"
@@ -280,6 +281,24 @@ export function generateWorkItems(
   }
 
   return items;
+}
+
+/**
+ * Convert approved GrowthProposals into Tier 5 WorkItems.
+ */
+export function generateGrowthItems(proposals: GrowthProposal[], kb: KnowledgeBase | null): WorkItem[] {
+  return proposals.map(p => createItem({
+    tier: 5 as const,
+    priority_score: Math.round(
+      p.evidence.reduce((sum, e) => sum + e.confidence, 0) / Math.max(p.evidence.length, 1) * 100
+    ),
+    title: p.title,
+    description: p.description,
+    rationale: p.rationale,
+    target_files: p.target_files,
+    estimated_complexity: p.estimated_complexity === 'small' ? 'small' : p.estimated_complexity === 'medium' ? 'medium' : 'large',
+    success_criteria: p.success_metrics,
+  }, kb));
 }
 
 /**
