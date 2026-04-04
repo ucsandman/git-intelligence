@@ -1,0 +1,66 @@
+{
+  "identity": {
+    "name": "giti",
+    "purpose": "Transform raw git repository data into actionable intelligence for developers",
+    "philosophy": "Surface insights humans miss. Never require configuration. Work on any repo."
+  },
+
+  "boundaries": {
+    "growth_zone": [
+      "git data analysis and visualization",
+      "repository health assessment",
+      "developer workflow intelligence",
+      "codebase archaeology and forensics",
+      "commit pattern recognition",
+      "team dynamics and contributor analytics"
+    ],
+    "forbidden_zone": [
+      "modifying the target repository in any way",
+      "accessing external APIs or services without explicit user consent",
+      "collecting or transmitting user data",
+      "replacing existing git commands",
+      "requiring authentication or accounts",
+      "adding GUI or web interface (stay CLI-native)"
+    ]
+  },
+
+  "quality_standards": {
+    "test_coverage_floor": 80,
+    "max_complexity_per_function": 15,
+    "max_file_length": 300,
+    "zero_tolerance": ["any:errors", "security:vulnerabilities"],
+    "performance_budget": {
+      "pulse_command": "< 2 seconds on repos up to 10k commits",
+      "hotspots_command": "< 5 seconds on repos up to 10k commits",
+      "any_new_command": "< 10 seconds on repos up to 10k commits"
+    }
+  },
+
+  "evolutionary_principles": [
+    "Every new feature must be discoverable without documentation",
+    "Never break existing commands or change output formats without a migration path",
+    "Prefer depth over breadth — master one analysis before adding another",
+    "Performance matters more than features — a fast tool gets used, a slow tool gets uninstalled",
+    "If a feature requires configuration, the organism hasn't understood the problem well enough"
+  ],
+
+  "telemetry": {
+    "what_to_track": [
+      "which commands are invoked and how often",
+      "which flags and options are used",
+      "repo sizes and characteristics encountered",
+      "errors and failure modes",
+      "execution time per command"
+    ],
+    "privacy": "opt-in only, anonymized, local-first with optional remote aggregation",
+    "purpose": "feed the Sensory Cortex so the organism knows how it's being used"
+  },
+
+  "lifecycle": {
+    "cycle_frequency": "daily",
+    "max_changes_per_cycle": 3,
+    "mandatory_cooldown_after_regression": "48 hours",
+    "branch_naming": "organism/{cortex}/{description}",
+    "requires_immune_approval": true
+  }
+}
