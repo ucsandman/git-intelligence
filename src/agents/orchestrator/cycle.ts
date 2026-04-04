@@ -8,6 +8,7 @@ import { runImmuneReview } from '../immune-system/index.js';
 import { createBaselinesFromReport, writeBaselines } from '../immune-system/baselines.js';
 import { recordMemoryEvent } from '../memory/index.js';
 import { mergeBranch, deleteBranch, switchToMain } from '../motor-cortex/branch-manager.js';
+import { runGrowthHormone } from '../growth-hormone/index.js';
 
 export async function runLifecycleCycle(options: CycleOptions): Promise<CycleResult> {
   const { repoPath, supervised } = options;
@@ -44,6 +45,19 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
     if (plan.selected_items.length === 0) {
       await recordMemoryEvent(repoPath, 'cycle-complete', `Cycle ${cycle} stable`, { cycle, outcome: 'stable' });
       return makeResult(cycle, startTime, 'stable');
+    }
+
+    // Phase 2.5: GROW
+    if (await safety.isKillSwitchActive(repoPath)) return makeResult(cycle, startTime, 'aborted');
+    try {
+      const { proposals } = await runGrowthHormone(repoPath);
+      if (proposals.length > 0) {
+        await recordMemoryEvent(repoPath, 'growth-proposed', `${proposals.length} growth proposals generated`, {
+          cycle, proposals: proposals.map(p => p.title),
+        });
+      }
+    } catch {
+      // Growth analysis failure is non-critical — continue with cycle
     }
 
     // Phase 3: BUILD

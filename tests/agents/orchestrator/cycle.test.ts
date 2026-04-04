@@ -9,6 +9,9 @@ vi.mock('../../../src/agents/immune-system/baselines.js');
 vi.mock('../../../src/agents/memory/index.js');
 vi.mock('../../../src/agents/motor-cortex/branch-manager.js');
 vi.mock('../../../src/agents/orchestrator/safety.js');
+vi.mock('../../../src/agents/growth-hormone/index.js', () => ({
+  runGrowthHormone: vi.fn().mockResolvedValue({ signals: [], proposals: [] }),
+}));
 
 import { runLifecycleCycle } from '../../../src/agents/orchestrator/cycle.js';
 import type { StateReport } from '../../../src/agents/sensory-cortex/types.js';
@@ -285,11 +288,12 @@ describe('runLifecycleCycle', () => {
     const plan = makeCyclePlan(items);
 
     // Kill switch is off initially, off for sense phase, off for plan phase,
-    // then ON for build phase
+    // off for grow phase, then ON for build phase
     mockSafety.isKillSwitchActive
       .mockResolvedValueOnce(false)  // pre-flight
       .mockResolvedValueOnce(false)  // before sense
       .mockResolvedValueOnce(false)  // before plan
+      .mockResolvedValueOnce(false)  // before grow
       .mockResolvedValueOnce(true);  // before build loop
 
     mockSensory.runSensoryCortex.mockResolvedValue({ report, reportPath: '/tmp/report.json' });
