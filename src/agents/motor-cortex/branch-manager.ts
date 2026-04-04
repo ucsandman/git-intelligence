@@ -29,6 +29,16 @@ export async function deleteBranch(repoPath: string, branch: string): Promise<vo
   await git.deleteLocalBranch(branch, true);
 }
 
+export async function pushBranch(repoPath: string, branchName: string, remote: string = 'origin'): Promise<void> {
+  const git = simpleGit(repoPath);
+  await git.push(remote, branchName);
+}
+
+export async function deleteRemoteBranch(repoPath: string, branchName: string, remote: string = 'origin'): Promise<void> {
+  const git = simpleGit(repoPath);
+  await git.push(remote, `:${branchName}`);
+}
+
 export function generateBranchName(title: string): string {
   const slug = title
     .toLowerCase()

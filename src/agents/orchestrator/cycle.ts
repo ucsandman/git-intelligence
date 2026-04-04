@@ -1,5 +1,7 @@
 import type { CycleOptions, CycleResult } from './types.js';
 import type { StateReport } from '../sensory-cortex/types.js';
+import type { WorkItem } from '../prefrontal-cortex/types.js';
+import type { ReviewVerdict } from '../immune-system/types.js';
 import * as safety from './safety.js';
 import { runSensoryCortex } from '../sensory-cortex/index.js';
 import { runPrefrontalCortex } from '../prefrontal-cortex/index.js';
@@ -7,8 +9,10 @@ import { runMotorCortex } from '../motor-cortex/index.js';
 import { runImmuneReview } from '../immune-system/index.js';
 import { createBaselinesFromReport, writeBaselines } from '../immune-system/baselines.js';
 import { recordMemoryEvent } from '../memory/index.js';
-import { mergeBranch, deleteBranch, switchToMain } from '../motor-cortex/branch-manager.js';
+import { mergeBranch, deleteBranch, switchToMain, pushBranch } from '../motor-cortex/branch-manager.js';
 import { runGrowthHormone } from '../growth-hormone/index.js';
+import { createGitHubClient } from '../../integrations/github/client.js';
+import { formatPRBody, formatPRTitle, getPRLabels } from '../../integrations/github/pr-formatter.js';
 
 export async function runLifecycleCycle(options: CycleOptions): Promise<CycleResult> {
   const { repoPath, supervised } = options;
@@ -62,12 +66,14 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
 
     // Phase 3: BUILD
     const buildResults: Array<import('../motor-cortex/types.js').ImplementationResult> = [];
+    const branchToWorkItem = new Map<string, WorkItem>();
     for (const item of plan.selected_items) {
       if (await safety.isKillSwitchActive(repoPath)) break;
       if (!await safety.checkApiBudget(repoPath)) break;
       try {
         const result = await runMotorCortex(repoPath, item, cycle);
         buildResults.push(result);
+        branchToWorkItem.set(result.branch_name, item);
         totalTokens += result.claude_tokens_used;
         await safety.recordApiUsage(repoPath, result.claude_tokens_used);
         await recordMemoryEvent(repoPath, 'implementation-complete', `Built: ${item.title}`, { cycle, branch: result.branch_name });
@@ -78,12 +84,14 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
 
     // Phase 4: DEFEND
     const approvedBranches: string[] = [];
+    const branchToVerdict = new Map<string, ReviewVerdict>();
     let rejectedCount = 0;
     for (const result of buildResults.filter(r => r.status === 'success')) {
       try {
         const { verdict } = await runImmuneReview(repoPath, result.branch_name);
         if (verdict.verdict === 'approve') {
           approvedBranches.push(result.branch_name);
+          branchToVerdict.set(result.branch_name, verdict);
           await recordMemoryEvent(repoPath, 'change-approved', `Approved: ${result.branch_name}`, { cycle, branch: result.branch_name });
         } else {
           rejectedCount++;
@@ -97,7 +105,36 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
 
     // Phase 5: COMMIT
     let mergedCount = 0;
-    if (!supervised && approvedBranches.length > 0) {
+    const githubClient = createGitHubClient();
+
+    if (githubClient && approvedBranches.length > 0) {
+      // GitHub PR workflow
+      const autoMerge = process.env['GITI_AUTO_MERGE'] === 'true';
+      const autoMergeDelay = Math.min(parseInt(process.env['GITI_AUTO_MERGE_DELAY'] ?? '3600000', 10), 10000);
+      for (const branch of approvedBranches) {
+        try {
+          await pushBranch(repoPath, branch);
+          const workItem = branchToWorkItem.get(branch) ?? plan.selected_items[0]!;
+          const verdict = branchToVerdict.get(branch)!;
+          const prBody = formatPRBody({ workItem, cycleNumber: cycle, verdict, stateReport: report });
+          const pr = await githubClient.createPullRequest({
+            branch,
+            title: formatPRTitle(workItem, cycle),
+            body: prBody,
+            labels: getPRLabels(workItem),
+          });
+          if (!supervised && autoMerge) {
+            await new Promise(resolve => setTimeout(resolve, autoMergeDelay));
+            await githubClient.mergePullRequest(pr.number, 'squash');
+            mergedCount++;
+          }
+          await recordMemoryEvent(repoPath, 'change-merged', `PR created: ${branch} (#${pr.number})`, { cycle, branch, pr: pr.number, url: pr.url });
+        } catch (error) {
+          await recordMemoryEvent(repoPath, 'merge-failed', `GitHub PR failed: ${branch}`, { cycle, branch, error: String(error) });
+        }
+      }
+    } else if (!supervised && approvedBranches.length > 0) {
+      // Local merge workflow (fallback when GitHub is not configured)
       for (const branch of approvedBranches) {
         try {
           await switchToMain(repoPath);

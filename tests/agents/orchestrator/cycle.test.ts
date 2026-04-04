@@ -12,6 +12,14 @@ vi.mock('../../../src/agents/orchestrator/safety.js');
 vi.mock('../../../src/agents/growth-hormone/index.js', () => ({
   runGrowthHormone: vi.fn().mockResolvedValue({ signals: [], proposals: [] }),
 }));
+vi.mock('../../../src/integrations/github/client.js', () => ({
+  createGitHubClient: vi.fn().mockReturnValue(null), // default: no GitHub
+}));
+vi.mock('../../../src/integrations/github/pr-formatter.js', () => ({
+  formatPRBody: vi.fn().mockReturnValue('PR body'),
+  formatPRTitle: vi.fn().mockReturnValue('PR title'),
+  getPRLabels: vi.fn().mockReturnValue(['organism']),
+}));
 
 import { runLifecycleCycle } from '../../../src/agents/orchestrator/cycle.js';
 import type { StateReport } from '../../../src/agents/sensory-cortex/types.js';
