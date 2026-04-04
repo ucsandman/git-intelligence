@@ -2,6 +2,9 @@ import { Command } from 'commander';
 import { executePulse } from './commands/pulse.js';
 import { executeHotspots } from './commands/hotspots.js';
 import { executeGhosts } from './commands/ghosts.js';
+import { executeSense } from './cli/sense.js';
+import { executeReview } from './cli/review.js';
+import { executeRemember } from './cli/remember.js';
 
 process.on('unhandledRejection', (reason, _promise) => {
   console.error('Unhandled Rejection:', reason);
@@ -52,5 +55,41 @@ program
       deadMonths: options.deadMonths ? parseInt(options.deadMonths, 10) : undefined,
     });
   });
+
+program
+  .command('sense')
+  .description('Run sensory cortex — comprehensive organism state scan')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .action(async (options: { json?: boolean; path?: string }) => {
+    await executeSense(options);
+  });
+
+program
+  .command('review <branch>')
+  .description('Run immune system review on a branch')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .action(async (branch: string, options: { json?: boolean; path?: string }) => {
+    await executeReview(branch, options);
+  });
+
+program
+  .command('remember <subcommand> [args...]')
+  .description('Interact with organism memory (record, query, summary)')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .option('--type <type>', 'Event type for record subcommand')
+  .option('--data <json>', 'Event data as JSON string')
+  .option('--category <cat>', 'Category filter for summary')
+  .action(
+    async (
+      subcommand: string,
+      args: string[],
+      options: { json?: boolean; path?: string; type?: string; data?: string; category?: string },
+    ) => {
+      await executeRemember(subcommand, args, options);
+    },
+  );
 
 program.parse();
