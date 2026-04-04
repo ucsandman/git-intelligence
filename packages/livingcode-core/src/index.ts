@@ -1,6 +1,7 @@
 import type { LivingCodebaseConfig } from './types.js';
 
 export type { OrganismConfig, LivingCodebaseConfig } from './types.js';
+export { validateOrganismConfig, type ValidationResult } from './schema/validator.js';
 
 export class LivingCodebase {
   constructor(public readonly config: LivingCodebaseConfig) {}

@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://livingcode.dev/schemas/organism.json",
+  "title": "Organism Configuration",
+  "description": "Schema for organism.json — the manifest that defines a living codebase's identity, boundaries, quality standards, lifecycle, and evolutionary principles.",
+  "type": "object",
+  "required": ["identity", "boundaries", "quality_standards"],
+  "additionalProperties": true,
+  "properties": {
+    "identity": {
+      "type": "object",
+      "required": ["name", "purpose"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short name for the organism (e.g. 'giti')"
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One-sentence purpose statement"
+        },
+        "philosophy": {
+          "type": "string",
+          "description": "Optional guiding philosophy"
+        }
+      }
+    },
+    "boundaries": {
+      "type": "object",
+      "required": ["growth_zone", "forbidden_zone"],
+      "additionalProperties": false,
+      "properties": {
+        "growth_zone": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Areas where the organism is allowed to grow"
+        },
+        "forbidden_zone": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Areas the organism must never touch"
+        }
+      }
+    },
+    "quality_standards": {
+      "type": "object",
+      "required": [
+        "test_coverage_floor",
+        "max_complexity_per_function",
+        "max_file_length"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "test_coverage_floor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Minimum test coverage percentage (0-100)"
+        },
+        "max_complexity_per_function": {
+          "type": "number",
+          "minimum": 1,
+          "description": "Maximum cyclomatic complexity per function"
+        },
+        "max_file_length": {
+          "type": "number",
+          "minimum": 1,
+          "description": "Maximum lines per file"
+        },
+        "zero_tolerance": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Categories that must have zero violations"
+        },
+        "performance_budget": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Performance budgets keyed by command or operation"
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "required": ["max_changes_per_cycle", "requires_immune_approval"],
+      "additionalProperties": true,
+      "properties": {
+        "max_changes_per_cycle": {
+          "type": "number",
+          "minimum": 1,
+          "description": "Maximum number of changes per lifecycle cycle"
+        },
+        "requires_immune_approval": {
+          "type": "boolean",
+          "description": "Whether immune system approval is required before merging"
+        },
+        "cycle_frequency": {
+          "type": "string",
+          "description": "How often the lifecycle runs (e.g. 'daily')"
+        },
+        "mandatory_cooldown_after_regression": {
+          "type": "string",
+          "description": "Cooldown period after a regression is detected"
+        },
+        "branch_naming": {
+          "type": "string",
+          "description": "Branch naming convention template"
+        }
+      }
+    },
+    "evolutionary_principles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Guiding principles that govern how the organism evolves"
+    }
+  }
+}
