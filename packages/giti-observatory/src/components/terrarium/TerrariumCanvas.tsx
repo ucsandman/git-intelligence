@@ -7,6 +7,7 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useObservatory } from '@/data/provider-context.js';
 import { DayNightLighting } from './lighting/DayNightLighting.js';
 import { Ground } from './environment/Ground.js';
+import { Creature } from './creature/Creature.js';
 
 export function TerrariumCanvas() {
   const { scene } = useObservatory();
@@ -24,18 +25,7 @@ export function TerrariumCanvas() {
         <DayNightLighting timeOfDay={scene.environment.timeOfDay} />
         <Ground lushness={scene.environment.groundLushness} />
 
-        {/* Creature placeholder — Phase 4 */}
-        <mesh position={[0, 0.5, 0]}>
-          <sphereGeometry args={[0.5 * scene.creature.size, 32, 32]} />
-          <meshPhysicalMaterial
-            color="#2a6a4a"
-            transmission={0.6}
-            thickness={1.5}
-            roughness={0.2}
-            emissive="#1a4a3a"
-            emissiveIntensity={scene.creature.bioluminescence * 0.5}
-          />
-        </mesh>
+        <Creature creature={scene.creature} />
 
         <OrbitControls
           enablePan={false}
