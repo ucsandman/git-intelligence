@@ -16,6 +16,11 @@ export interface OrganismConfig {
     performance_budget: Record<string, string>;
   };
   evolutionary_principles: string[];
+  observatory?: {
+    port?: number;
+    public_endpoint?: string;
+    push_after_cycle?: boolean;
+  };
   lifecycle: {
     cycle_frequency: string;
     max_changes_per_cycle: number;

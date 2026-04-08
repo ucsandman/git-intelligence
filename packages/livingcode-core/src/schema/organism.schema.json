@@ -119,6 +119,27 @@
         "minLength": 1
       },
       "description": "Guiding principles that govern how the organism evolves"
+    },
+    "observatory": {
+      "type": "object",
+      "description": "Observatory terrarium visualization configuration",
+      "properties": {
+        "port": {
+          "type": "number",
+          "description": "Local observatory server port",
+          "default": 3333
+        },
+        "public_endpoint": {
+          "type": "string",
+          "description": "URL to push snapshots for public observatory"
+        },
+        "push_after_cycle": {
+          "type": "boolean",
+          "description": "Auto-push snapshot after each lifecycle cycle",
+          "default": false
+        }
+      },
+      "additionalProperties": false
     }
   }
 }
