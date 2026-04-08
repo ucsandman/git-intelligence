@@ -42,13 +42,13 @@ All commands run from the repo root via npm workspaces:
 
 ### Sprint 1: Safety Layer (agents)
 - `src/agents/sensory-cortex/` — state observation: 5 collectors (git-stats, test-health, code-quality, dependency-health, performance) + trend detector
-- `src/agents/immune-system/` — adversarial review: 6 checks (test, quality, performance, boundary, regression, dependency) + verdict logic + baselines
-- `src/agents/memory/` — persistent knowledge: store, curator (lesson extraction, pattern detection), keyword query
+- `src/agents/immune-system/` — adversarial review: 7 checks (test, quality, performance, boundary, regression, dependency, secrets) + verdict logic + baselines
+- `src/agents/memory/` — persistent knowledge: store, curator (lesson extraction, pattern detection), FTS query (Porter stemmer, TF-IDF scoring), hierarchical indexing
 
 ### Sprint 2: Autonomous Lifecycle
 - `src/agents/prefrontal-cortex/` — strategic planner: tiered prioritization (5 tiers), backlog management, cooldown awareness
 - `src/agents/motor-cortex/` — builder: Claude API integration, structured prompt→response, self-correction loop (max 2 attempts), branch management
-- `src/agents/orchestrator/` — lifecycle: full cycle (sense→plan→build→review→commit→reflect), safety systems (kill switch, cooldown, lock, failures, API budget), scheduler
+- `src/agents/orchestrator/` — lifecycle: full cycle (sense→plan→build→review→commit→reflect), safety systems (kill switch, cooldown, lock, failures, API budget), scheduler, heartbeat monitor (inter-cycle health checks)
 
 ### Sprint 3: Enable Growth
 - `src/telemetry/` — opt-in anonymous usage data: types, store (JSON-lines), anonymizer (SHA-256 hashing, path stripping), collector (command instrumentation), reporter (aggregation)
@@ -69,6 +69,7 @@ All commands run from the repo root via npm workspaces:
 - `src/agents/utils.ts` — filesystem ops (readJsonFile, writeJsonFile, ensureOrganismDir), runCommand (execFileSync)
 - `src/cli/` — CLI entrypoints for all 14 commands
 - `src/integrations/openclaw/` — optional tracing (env-gated via OPENCLAW_API_KEY)
+- `src/integrations/audit/` — append-only agent action audit logger (JSON-lines)
 
 ## Data Flow
 ```
@@ -86,7 +87,8 @@ All commands run from the repo root via npm workspaces:
 ├── kill-switch           # Organism halt signal (presence = stopped)
 ├── scheduler.json        # Running scheduler config
 ├── cycle-history/        # Completed cycle results
-└── traces/               # OpenClaw trace files (local fallback)
+├── traces/               # OpenClaw trace files (local fallback)
+└── audit-log.jsonl       # Agent action audit trail (JSON-lines, append-only)
 
 ~/.giti/
 ├── telemetry-config.json # User opt-in preference
