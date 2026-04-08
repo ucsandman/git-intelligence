@@ -1,6 +1,5 @@
 /**
- * Full-Text Search primitives — simplified Porter stemmer and tokenizer.
- * Used by the memory agent's inverted index (built in Task 2).
+ * Full-Text Search engine — stemmer, tokenizer, inverted index, and TF-IDF search.
  */
 
 // ── Stopwords ──────────────────────────────────────────────────────
@@ -76,4 +75,126 @@ export function tokenize(text: string): string[] {
     .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
 
   return [...new Set(words)];
+}
+
+// ── Types ─────────────────────────────────────────────────────────
+
+export interface FTSDocument {
+  id: string;
+  type: 'event' | 'lesson' | 'pattern' | 'preference';
+  content: string;
+  timestamp: string;
+  fields: Record<string, string>;
+}
+
+export interface FTSResult {
+  id: string;
+  type: 'event' | 'lesson' | 'pattern' | 'preference';
+  content: string;
+  timestamp: string;
+  score: number;
+}
+
+export interface FTSIndex {
+  invertedIndex: Map<string, Map<string, number>>;
+  documents: Map<string, FTSDocument>;
+  documentCount: number;
+  fieldWeights: Record<string, number>;
+}
+
+// ── Index ─────────────────────────────────────────────────────────
+
+/**
+ * Create an empty full-text search index with the given field weights.
+ */
+export function createIndex(fieldWeights: Record<string, number>): FTSIndex {
+  return {
+    invertedIndex: new Map(),
+    documents: new Map(),
+    documentCount: 0,
+    fieldWeights,
+  };
+}
+
+/**
+ * Add a document to the index. Tokenizes and stems each field,
+ * counts term frequency, and multiplies by field weight.
+ */
+export function addDocument(index: FTSIndex, doc: FTSDocument): void {
+  index.documents.set(doc.id, doc);
+  index.documentCount++;
+
+  for (const [fieldName, text] of Object.entries(doc.fields)) {
+    const weight = index.fieldWeights[fieldName] ?? 1.0;
+
+    // Split into raw words (preserving duplicates for TF counting),
+    // filter stopwords and short words, then stem each token.
+    const rawWords = text
+      .toLowerCase()
+      .split(/[\s\-_.,:;!?()\[\]{}'"\\/]+/)
+      .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+    const stemmed = rawWords.map((t) => stem(t));
+
+    // Count raw term frequency per stemmed token
+    const tfCounts = new Map<string, number>();
+    for (const s of stemmed) {
+      tfCounts.set(s, (tfCounts.get(s) ?? 0) + 1);
+    }
+
+    // Accumulate weighted TF into the inverted index
+    for (const [term, count] of tfCounts) {
+      let postings = index.invertedIndex.get(term);
+      if (!postings) {
+        postings = new Map();
+        index.invertedIndex.set(term, postings);
+      }
+      postings.set(doc.id, (postings.get(doc.id) ?? 0) + count * weight);
+    }
+  }
+}
+
+// ── Search ────────────────────────────────────────────────────────
+
+/**
+ * Search the index using TF-IDF scoring.
+ * IDF = log((N+1)/(df+1)) + 1
+ * Score = sum of (TF × IDF) for each query term.
+ */
+export function search(
+  index: FTSIndex,
+  query: string,
+  limit = 20,
+): FTSResult[] {
+  const queryTokens = tokenize(query).map((t) => stem(t));
+  if (queryTokens.length === 0) return [];
+
+  const scores = new Map<string, number>();
+  const N = index.documentCount;
+
+  for (const term of queryTokens) {
+    const postings = index.invertedIndex.get(term);
+    if (!postings) continue;
+
+    const df = postings.size;
+    const idf = Math.log((N + 1) / (df + 1)) + 1;
+
+    for (const [docId, tf] of postings) {
+      scores.set(docId, (scores.get(docId) ?? 0) + tf * idf);
+    }
+  }
+
+  const results: FTSResult[] = [];
+  for (const [docId, score] of scores) {
+    const doc = index.documents.get(docId)!;
+    results.push({
+      id: doc.id,
+      type: doc.type,
+      content: doc.content,
+      timestamp: doc.timestamp,
+      score,
+    });
+  }
+
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, limit);
 }
