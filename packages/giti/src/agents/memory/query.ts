@@ -1,98 +1,97 @@
 import type { KnowledgeBase, QueryResult } from './types.js';
+import { createIndex, addDocument, search, type FTSIndex } from './fts.js';
 
-interface ScoredItem {
-  type: 'event' | 'lesson' | 'pattern' | 'preference';
-  content: string;
-  relevance: number;
-  timestamp: string;
+const FIELD_WEIGHTS = {
+  lesson: 1.5,
+  summary: 1.0,
+  path: 1.0,
+  preference: 1.0,
+  tags: 0.8,
+  notes: 0.8,
+  category: 0.5,
+  type: 0.5,
+};
+
+function buildIndex(kb: KnowledgeBase): FTSIndex {
+  const index = createIndex(FIELD_WEIGHTS);
+
+  for (const event of kb.events) {
+    addDocument(index, {
+      id: event.id,
+      type: 'event',
+      content: event.summary,
+      timestamp: event.timestamp,
+      fields: {
+        summary: event.summary,
+        tags: event.tags.join(' '),
+        type: event.type,
+      },
+    });
+  }
+
+  for (const lesson of kb.lessons) {
+    addDocument(index, {
+      id: lesson.id,
+      type: 'lesson',
+      content: lesson.lesson,
+      timestamp: lesson.learned_at,
+      fields: {
+        lesson: lesson.lesson,
+        category: lesson.category,
+      },
+    });
+  }
+
+  for (const file of kb.patterns.fragile_files) {
+    addDocument(index, {
+      id: `fragile:${file.path}`,
+      type: 'pattern',
+      content: file.path,
+      timestamp: file.last_regression,
+      fields: {
+        path: file.path,
+        notes: file.notes,
+      },
+    });
+  }
+
+  for (const pref of kb.preferences) {
+    addDocument(index, {
+      id: `pref:${pref.preference}`,
+      type: 'preference',
+      content: pref.preference,
+      timestamp: pref.last_observed,
+      fields: {
+        preference: pref.preference,
+      },
+    });
+  }
+
+  return index;
 }
 
 export function queryKnowledgeBase(kb: KnowledgeBase, query: string): QueryResult {
-  const keywords = query
-    .split(/\s+/)
-    .map((w) => w.toLowerCase())
-    .filter((w) => w.length >= 3);
-
-  if (keywords.length === 0) {
+  if (!query.trim()) {
     return { query, results: [], total_results: 0 };
   }
 
-  const scored: ScoredItem[] = [];
+  const index = buildIndex(kb);
+  const ftsResults = search(index, query, 20);
 
-  // Score events
-  for (const event of kb.events) {
-    const searchText = [event.summary, event.tags.join(' '), event.type].join(' ').toLowerCase();
-    const matchCount = keywords.filter((kw) => searchText.includes(kw)).length;
-    const relevance = matchCount / keywords.length;
-    if (relevance > 0) {
-      scored.push({
-        type: 'event',
-        content: event.summary,
-        relevance,
-        timestamp: event.timestamp,
-      });
-    }
-  }
+  const results = ftsResults.map((r) => ({
+    type: r.type,
+    content: r.content,
+    relevance: r.score,
+    timestamp: r.timestamp,
+  }));
 
-  // Score lessons
-  for (const lesson of kb.lessons) {
-    const searchText = [lesson.lesson, lesson.category].join(' ').toLowerCase();
-    const matchCount = keywords.filter((kw) => searchText.includes(kw)).length;
-    const relevance = matchCount / keywords.length;
-    if (relevance > 0) {
-      scored.push({
-        type: 'lesson',
-        content: lesson.lesson,
-        relevance,
-        timestamp: lesson.learned_at,
-      });
-    }
-  }
-
-  // Score fragile files
-  for (const file of kb.patterns.fragile_files) {
-    const searchText = [file.path, file.notes].join(' ').toLowerCase();
-    const matchCount = keywords.filter((kw) => searchText.includes(kw)).length;
-    const relevance = matchCount / keywords.length;
-    if (relevance > 0) {
-      scored.push({
-        type: 'pattern',
-        content: file.path,
-        relevance,
-        timestamp: file.last_regression,
-      });
-    }
-  }
-
-  // Score preferences
-  for (const pref of kb.preferences) {
-    const searchText = pref.preference.toLowerCase();
-    const matchCount = keywords.filter((kw) => searchText.includes(kw)).length;
-    const relevance = matchCount / keywords.length;
-    if (relevance > 0) {
-      scored.push({
-        type: 'preference',
-        content: pref.preference,
-        relevance,
-        timestamp: pref.last_observed,
-      });
-    }
-  }
-
-  // Sort by relevance desc, then timestamp desc
-  scored.sort((a, b) => {
+  // Secondary sort: when scores are equal, prefer newer items
+  results.sort((a, b) => {
     if (b.relevance !== a.relevance) {
       return b.relevance - a.relevance;
     }
     return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
   });
 
-  // Take top 20
-  const results = scored.slice(0, 20);
-
-  return {
-    query,
-    results,
-    total_results: results.length,
-  };
+  return { query, results, total_results: results.length };
 }
