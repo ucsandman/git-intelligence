@@ -7,6 +7,11 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useObservatory } from '@/data/provider-context.js';
 import { DayNightLighting } from './lighting/DayNightLighting.js';
 import { Ground } from './environment/Ground.js';
+import { Flora } from './environment/Flora.js';
+import { Spores } from './environment/Spores.js';
+import { Weather } from './environment/Weather.js';
+import { EnergyPool } from './environment/EnergyPool.js';
+import { Fossils } from './environment/Fossils.js';
 import { Creature } from './creature/Creature.js';
 
 export function TerrariumCanvas() {
@@ -24,6 +29,11 @@ export function TerrariumCanvas() {
       <Suspense fallback={null}>
         <DayNightLighting timeOfDay={scene.environment.timeOfDay} />
         <Ground lushness={scene.environment.groundLushness} />
+        <Flora flora={scene.environment.flora} />
+        <Spores spores={scene.environment.spores} />
+        <Weather weather={scene.environment.weather} />
+        <EnergyPool level={scene.environment.energyPoolLevel} />
+        <Fossils fossils={scene.environment.fossils} />
 
         <Creature creature={scene.creature} />
 
