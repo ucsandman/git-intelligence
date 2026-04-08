@@ -1,11 +1,29 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { ObservatoryProvider } from '@/data/provider-context.js';
 import { createLocalProvider } from '@/data/local-provider.js';
 import { createRemoteProvider } from '@/data/remote-provider.js';
 import { VitalsStrip } from '@/components/vitals/VitalsStrip.js';
 import { GrowthJournal } from '@/components/journal/GrowthJournal.js';
+
+const TerrariumScene = dynamic(
+  () =>
+    import('@/components/terrarium/TerrariumCanvas.js').then(
+      (m) => m.TerrariumCanvas,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex-1 min-h-[50vh] bg-terrarium-surface flex items-center justify-center">
+        <span className="text-terrarium-text-muted text-sm font-mono">
+          Terrarium waking up...
+        </span>
+      </div>
+    ),
+  },
+);
 
 export default function ObservatoryPage() {
   const [_timelineCycle, setTimelineCycle] = useState<number | null>(null);
@@ -27,11 +45,9 @@ export default function ObservatoryPage() {
         {/* Layer 1: Vitals Strip */}
         <VitalsStrip />
 
-        {/* Layer 2: Terrarium Canvas (placeholder — Phase 3) */}
-        <div className="flex-1 min-h-[50vh] bg-terrarium-surface flex items-center justify-center border-b border-terrarium-soil-light/20">
-          <span className="text-terrarium-text-muted text-sm font-mono">
-            Terrarium loading...
-          </span>
+        {/* Layer 2: Terrarium Canvas */}
+        <div className="flex-1 min-h-[50vh]">
+          <TerrariumScene />
         </div>
 
         {/* Layer 3: Growth Journal */}
