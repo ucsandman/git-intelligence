@@ -51,3 +51,19 @@ export interface QueryResult {
   }>;
   total_results: number;
 }
+
+export interface MemoryIndex {
+  last_updated: string;
+  cycle_count: number;
+  total_events: number;
+  categories: Array<{
+    category: LessonCategory;
+    lesson_count: number;
+    top_confidence: number;
+    latest: string;
+    top_lesson: string;
+  }>;
+  fragile_file_count: number;
+  preference_count: number;
+  top_fragile_files: Array<{ path: string; regression_count: number }>;
+}

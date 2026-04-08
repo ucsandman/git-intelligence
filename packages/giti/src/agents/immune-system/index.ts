@@ -6,6 +6,7 @@ import { runPerformanceCheck } from './checks/performance-check.js';
 import { runBoundaryCheck } from './checks/boundary-check.js';
 import { runRegressionCheck } from './checks/regression-check.js';
 import { runDependencyCheck } from './checks/dependency-check.js';
+import { runSecretScan } from './checks/secret-scan.js';
 import { generateVerdict } from './verdict.js';
 import type { ReviewVerdict, ReviewRisk, RegressionContext } from './types.js';
 
@@ -40,8 +41,8 @@ export async function runImmuneReview(
     };
   }
 
-  // 4. Run all 6 checks in parallel
-  const [testResult, qualityResult, performanceResult, boundaryResult, regressionResult, dependencyResult] =
+  // 4. Run all 7 checks in parallel
+  const [testResult, qualityResult, performanceResult, boundaryResult, regressionResult, dependencyResult, secretResult] =
     await Promise.all([
       runTestCheck(repoPath, baselines, config),
       runQualityCheck(repoPath, baselines, config),
@@ -49,9 +50,10 @@ export async function runImmuneReview(
       runBoundaryCheck(repoPath, branch, config),
       runRegressionCheck(repoPath, branch, regressionContext),
       runDependencyCheck(repoPath, branch),
+      runSecretScan(repoPath, branch),
     ]);
 
-  const checks = [testResult, qualityResult, performanceResult, boundaryResult, regressionResult, dependencyResult];
+  const checks = [testResult, qualityResult, performanceResult, boundaryResult, regressionResult, dependencyResult, secretResult];
 
   // 5. Collect risks from checks
   const risks: ReviewRisk[] = [];

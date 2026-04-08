@@ -61,3 +61,4 @@ export async function getOrganismStatus(repoPath: string): Promise<OrganismStatu
 
 export { runLifecycleCycle } from './cycle.js';
 export { startScheduler, stopScheduler, getSchedulerStatus } from './scheduler.js';
+export { runHeartbeat } from './heartbeat.js';
