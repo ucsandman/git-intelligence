@@ -182,4 +182,15 @@ program
     await executeDispatch(options);
   });
 
+program
+  .command('observatory [subcommand]')
+  .description('Live terrarium visualization (start server, push snapshot, check status)')
+  .option('--path <path>', 'Repository path', '.')
+  .option('--port <port>', 'Server port', '3333')
+  .option('--json', 'Output as JSON', false)
+  .action(async (subcommand: string | undefined, options: { path: string; port?: string; json?: boolean }) => {
+    const { executeObservatory } = await import('./cli/observatory.js');
+    await executeObservatory(subcommand, options);
+  });
+
 program.parse();
