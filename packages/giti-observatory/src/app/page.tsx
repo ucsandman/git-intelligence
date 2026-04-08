@@ -7,6 +7,7 @@ import { createLocalProvider } from '@/data/local-provider.js';
 import { createRemoteProvider } from '@/data/remote-provider.js';
 import { VitalsStrip } from '@/components/vitals/VitalsStrip.js';
 import { GrowthJournal } from '@/components/journal/GrowthJournal.js';
+import { IntroOverlay } from '@/components/IntroOverlay.js';
 
 const TerrariumScene = dynamic(
   () =>
@@ -42,6 +43,7 @@ export default function ObservatoryPage() {
   return (
     <ObservatoryProvider provider={provider}>
       <main className="flex flex-col min-h-screen">
+        <IntroOverlay />
         {/* Layer 1: Vitals Strip */}
         <VitalsStrip />
 
