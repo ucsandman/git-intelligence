@@ -2,16 +2,16 @@
 
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { ObservatoryProvider } from '@/data/provider-context.js';
-import { createLocalProvider } from '@/data/local-provider.js';
-import { createRemoteProvider } from '@/data/remote-provider.js';
-import { VitalsStrip } from '@/components/vitals/VitalsStrip.js';
-import { GrowthJournal } from '@/components/journal/GrowthJournal.js';
-import { IntroOverlay } from '@/components/IntroOverlay.js';
+import { ObservatoryProvider } from '@/data/provider-context';
+import { createLocalProvider } from '@/data/local-provider';
+import { createRemoteProvider } from '@/data/remote-provider';
+import { VitalsStrip } from '@/components/vitals/VitalsStrip';
+import { GrowthJournal } from '@/components/journal/GrowthJournal';
+import { IntroOverlay } from '@/components/IntroOverlay';
 
 const TerrariumScene = dynamic(
   () =>
-    import('@/components/terrarium/TerrariumCanvas.js').then(
+    import('@/components/terrarium/TerrariumCanvas').then(
       (m) => m.TerrariumCanvas,
     ),
   {

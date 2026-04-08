@@ -8,10 +8,10 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import type { ObservatorySnapshot, OrganismEventDigest } from '../types/snapshot.js';
-import type { SceneState } from '../types/scene.js';
-import type { DataProvider } from './local-provider.js';
-import { mapSnapshotToScene } from '../lib/scene-mapper.js';
+import type { ObservatorySnapshot, OrganismEventDigest } from '../types/snapshot';
+import type { SceneState } from '../types/scene';
+import type { DataProvider } from './local-provider';
+import { mapSnapshotToScene } from '../lib/scene-mapper';
 
 interface ObservatoryState {
   snapshot: ObservatorySnapshot | null;

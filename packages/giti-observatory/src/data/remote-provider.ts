@@ -1,5 +1,5 @@
-import type { DataProvider } from './local-provider.js';
-import type { ObservatorySnapshot, OrganismEventDigest } from '../types/snapshot.js';
+import type { DataProvider } from './local-provider';
+import type { ObservatorySnapshot, OrganismEventDigest } from '../types/snapshot';
 
 export function createRemoteProvider(
   snapshotUrl: string,

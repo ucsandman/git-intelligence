@@ -1,10 +1,10 @@
 'use client';
 
-import { useObservatory } from '@/data/provider-context.js';
-import { StateIndicator } from './StateIndicator.js';
-import { SparkChart } from './SparkChart.js';
-import { PhaseIndicator } from './PhaseIndicator.js';
-import { friendlyLabel } from '@/lib/format.js';
+import { useObservatory } from '@/data/provider-context';
+import { StateIndicator } from './StateIndicator';
+import { SparkChart } from './SparkChart';
+import { PhaseIndicator } from './PhaseIndicator';
+import { friendlyLabel } from '@/lib/format';
 
 export function VitalsStrip() {
   const { snapshot, scene } = useObservatory();

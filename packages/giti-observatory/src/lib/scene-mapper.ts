@@ -1,4 +1,4 @@
-import type { ObservatorySnapshot } from '../types/snapshot.js';
+import type { ObservatorySnapshot } from '../types/snapshot';
 import type {
   SceneState,
   CreatureMood,
@@ -8,7 +8,7 @@ import type {
   FloraType,
   SporeItem,
   FossilItem,
-} from '../types/scene.js';
+} from '../types/scene';
 
 const FLORA_CAP = 200;
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { mapSnapshotToScene } from '../src/lib/scene-mapper.js';
-import type { ObservatorySnapshot } from '../src/types/snapshot.js';
+import { mapSnapshotToScene } from '../src/lib/scene-mapper';
+import type { ObservatorySnapshot } from '../src/types/snapshot';
 
 function makeSnapshot(
   overrides: Partial<ObservatorySnapshot> = {},

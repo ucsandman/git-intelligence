@@ -4,10 +4,10 @@ import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Float, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { CreatureBody } from './CreatureBody.js';
-import { CreatureOrgans } from './CreatureOrgans.js';
-import { CursorTracker } from '../interaction/CursorTracker.js';
-import type { SceneState } from '@/types/scene.js';
+import { CreatureBody } from './CreatureBody';
+import { CreatureOrgans } from './CreatureOrgans';
+import { CursorTracker } from '../interaction/CursorTracker';
+import type { SceneState } from '@/types/scene';
 
 interface Props {
   creature: SceneState['creature'];

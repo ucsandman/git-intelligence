@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { buildSnapshot } from '../src/data/snapshot-builder.js';
-import { mapSnapshotToScene } from '../src/lib/scene-mapper.js';
+import { buildSnapshot } from '../src/data/snapshot-builder';
+import { mapSnapshotToScene } from '../src/lib/scene-mapper';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 

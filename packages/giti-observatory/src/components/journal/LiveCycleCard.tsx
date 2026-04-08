@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import type { ObservatorySnapshot } from '@/types/snapshot.js';
+import type { ObservatorySnapshot } from '@/types/snapshot';
 
 interface Props {
   currentCycle: NonNullable<ObservatorySnapshot['current_cycle']>;

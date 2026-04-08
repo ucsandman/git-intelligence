@@ -1,4 +1,4 @@
-import type { ObservatorySnapshot, OrganismEventDigest } from '../types/snapshot.js';
+import type { ObservatorySnapshot, OrganismEventDigest } from '../types/snapshot';
 
 export interface DataProvider {
   fetchSnapshot(): Promise<ObservatorySnapshot>;

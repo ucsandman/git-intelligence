@@ -4,15 +4,15 @@ import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import { useObservatory } from '@/data/provider-context.js';
-import { DayNightLighting } from './lighting/DayNightLighting.js';
-import { Ground } from './environment/Ground.js';
-import { Flora } from './environment/Flora.js';
-import { Spores } from './environment/Spores.js';
-import { Weather } from './environment/Weather.js';
-import { EnergyPool } from './environment/EnergyPool.js';
-import { Fossils } from './environment/Fossils.js';
-import { Creature } from './creature/Creature.js';
+import { useObservatory } from '@/data/provider-context';
+import { DayNightLighting } from './lighting/DayNightLighting';
+import { Ground } from './environment/Ground';
+import { Flora } from './environment/Flora';
+import { Spores } from './environment/Spores';
+import { Weather } from './environment/Weather';
+import { EnergyPool } from './environment/EnergyPool';
+import { Fossils } from './environment/Fossils';
+import { Creature } from './creature/Creature';
 
 export function TerrariumCanvas() {
   const { scene } = useObservatory();

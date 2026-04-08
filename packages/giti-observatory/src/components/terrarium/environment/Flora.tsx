@@ -3,7 +3,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { FloraItem } from '@/types/scene.js';
+import type { FloraItem } from '@/types/scene';
 
 const floraColors: Record<string, { base: string; emissive: string }> = {
   shrub: { base: '#2a5a20', emissive: '#1a3a10' },

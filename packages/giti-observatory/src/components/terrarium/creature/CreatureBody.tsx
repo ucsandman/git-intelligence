@@ -5,7 +5,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import bodyVert from './shaders/body.vert';
 import bodyFrag from './shaders/body.frag';
-import type { CreatureMood } from '@/types/scene.js';
+import type { CreatureMood } from '@/types/scene';
 
 const moodConfigs: Record<
   CreatureMood,

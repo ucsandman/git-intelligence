@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { friendlyLabel, friendlyOutcome, relativeTime } from '../src/lib/format.js';
+import { friendlyLabel, friendlyOutcome, relativeTime } from '../src/lib/format';
 
 describe('friendlyLabel', () => {
   it('converts technical metric names to human labels', () => {

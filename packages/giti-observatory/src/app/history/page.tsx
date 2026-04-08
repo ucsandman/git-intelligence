@@ -1,11 +1,11 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ObservatoryProvider } from '@/data/provider-context.js';
-import { createLocalProvider } from '@/data/local-provider.js';
-import { createRemoteProvider } from '@/data/remote-provider.js';
-import { VitalsStrip } from '@/components/vitals/VitalsStrip.js';
-import { GrowthJournal } from '@/components/journal/GrowthJournal.js';
+import { ObservatoryProvider } from '@/data/provider-context';
+import { createLocalProvider } from '@/data/local-provider';
+import { createRemoteProvider } from '@/data/remote-provider';
+import { VitalsStrip } from '@/components/vitals/VitalsStrip';
+import { GrowthJournal } from '@/components/journal/GrowthJournal';
 
 export default function HistoryPage() {
   const provider = useMemo(() => {

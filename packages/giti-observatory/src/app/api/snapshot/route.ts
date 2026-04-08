@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { buildSnapshot } from '@/data/snapshot-builder.js';
+import { buildSnapshot } from '@/data/snapshot-builder';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);

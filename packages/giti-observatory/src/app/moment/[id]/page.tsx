@@ -2,11 +2,11 @@
 
 import { useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import { ObservatoryProvider, useObservatory } from '@/data/provider-context.js';
-import { createLocalProvider } from '@/data/local-provider.js';
-import { createRemoteProvider } from '@/data/remote-provider.js';
-import { VitalsStrip } from '@/components/vitals/VitalsStrip.js';
-import { CycleCard } from '@/components/journal/CycleCard.js';
+import { ObservatoryProvider, useObservatory } from '@/data/provider-context';
+import { createLocalProvider } from '@/data/local-provider';
+import { createRemoteProvider } from '@/data/remote-provider';
+import { VitalsStrip } from '@/components/vitals/VitalsStrip';
+import { CycleCard } from '@/components/journal/CycleCard';
 
 function MomentContent() {
   const params = useParams();

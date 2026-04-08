@@ -1,6 +1,6 @@
 'use client';
 
-import type { CycleOutcome } from '@/types/snapshot.js';
+import type { CycleOutcome } from '@/types/snapshot';
 
 interface Props {
   activeFilters: Set<string>;

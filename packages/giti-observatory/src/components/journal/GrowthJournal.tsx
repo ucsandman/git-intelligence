@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useObservatory } from '@/data/provider-context.js';
-import { CycleCard } from './CycleCard.js';
-import { LiveCycleCard } from './LiveCycleCard.js';
-import { FilterChips } from './FilterChips.js';
+import { useObservatory } from '@/data/provider-context';
+import { CycleCard } from './CycleCard';
+import { LiveCycleCard } from './LiveCycleCard';
+import { FilterChips } from './FilterChips';
 
 interface Props {
   onShowInTerrarium?: (cycle: number) => void;

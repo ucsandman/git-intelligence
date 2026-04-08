@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { CycleDigest, DispatchDigest } from '@/types/snapshot.js';
-import { friendlyOutcome, relativeTime } from '@/lib/format.js';
-import { MilestoneBadge } from './MilestoneBadge.js';
+import type { CycleDigest, DispatchDigest } from '@/types/snapshot';
+import { friendlyOutcome, relativeTime } from '@/lib/format';
+import { MilestoneBadge } from './MilestoneBadge';
 
 const outcomeColors: Record<string, string> = {
   productive: 'bg-terrarium-moss/20 text-terrarium-moss-light',

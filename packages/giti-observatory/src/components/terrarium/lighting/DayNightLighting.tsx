@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { useSpring, animated } from '@react-spring/three';
-import type { TimeOfDay } from '@/types/scene.js';
+import type { TimeOfDay } from '@/types/scene';
 import * as THREE from 'three';
 
 // @react-spring/three animated wrappers are typed as possibly undefined;

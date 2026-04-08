@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Html } from '@react-three/drei';
-import type { FossilItem } from '@/types/scene.js';
+import type { FossilItem } from '@/types/scene';
 
 const milestoneLabels: Record<string, string> = {
   'first-cycle': 'First Breath',

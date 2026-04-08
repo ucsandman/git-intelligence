@@ -6,7 +6,7 @@ import type {
   OrganismEventDigest,
   DispatchDigest,
   CyclePhase,
-} from '../types/snapshot.js';
+} from '../types/snapshot';
 
 async function readJson<T>(filePath: string): Promise<T | null> {
   try {

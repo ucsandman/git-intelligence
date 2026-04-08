@@ -3,7 +3,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { SporeItem } from '@/types/scene.js';
+import type { SporeItem } from '@/types/scene';
 
 interface Props {
   spores: SporeItem[];
