@@ -8,7 +8,7 @@ This is a **monorepo** with two packages:
 
 | Package | Description |
 |---------|-------------|
-| [`packages/giti/`](./packages/giti/) | The CLI organism — 14 commands, 697 tests |
+| [`packages/giti/`](./packages/giti/) | The CLI organism — 14 commands, 767 tests |
 | [`packages/livingcode-core/`](./packages/livingcode-core/) | The Living Codebase framework — organism schema, validator, types |
 
 ## Installation
@@ -294,7 +294,7 @@ The organism has multiple safety mechanisms:
 - **Concurrent lock** — prevents multiple cycles from running simultaneously
 - **Failure limit** — pauses after 3 consecutive cycles with zero successful merges
 - **API budget** — configurable monthly token ceiling
-- **Immune System** — every change must pass 6 independent quality checks before merging
+- **Immune System** — every change must pass 7 independent quality checks before merging (including secret scanning)
 - **Supervised mode** — optional human approval gate before any merge
 
 ## Project Structure
@@ -312,17 +312,18 @@ git-intelligence/                   # Monorepo root (npm workspaces)
 │   │       ├── cli/                # CLI entrypoints for all 14 commands
 │   │       ├── agents/
 │   │       │   ├── sensory-cortex/ # Sprint 1: state observation and trend detection
-│   │       │   ├── immune-system/  # Sprint 1: adversarial review with 6 quality checks
-│   │       │   ├── memory/         # Sprint 1: persistent knowledge base and curator
+│   │       │   ├── immune-system/  # Sprint 1: adversarial review with 7 quality checks (incl. secret scanning)
+│   │       │   ├── memory/         # Sprint 1: persistent knowledge base, FTS search, hierarchical indexing
 │   │       │   ├── prefrontal-cortex/ # Sprint 2: strategic planning and prioritization
 │   │       │   ├── motor-cortex/   # Sprint 2: Claude API code generation with self-correction
-│   │       │   ├── orchestrator/   # Sprint 2: lifecycle cycle, safety, scheduling
+│   │       │   ├── orchestrator/   # Sprint 2: lifecycle cycle, safety, scheduling, heartbeat monitor
 │   │       │   └── growth-hormone/ # Sprint 3: telemetry signal analysis and feature proposals
 │   │       ├── telemetry/          # Sprint 3: opt-in anonymous usage data collection
 │   │       ├── simulator/          # Sprint 3: synthetic repo generation for testing
 │   │       ├── content/            # Sprint 4: dispatch generation, narratives, milestones
 │   │       └── integrations/
 │   │           ├── openclaw/       # Sprint 2: optional observability instrumentation
+│   │           ├── audit/          # Agent action audit trail (JSON-lines)
 │   │           ├── dashclaw/       # Sprint 4: DashClaw dashboard (fitness score, reporting)
 │   │           └── github/         # Sprint 4: GitHub integration (PRs, issues, releases)
 │   └── livingcode-core/            # Sprint 4: extracted framework package
@@ -354,7 +355,7 @@ This project uses npm workspaces. All commands run from the repo root:
 ```bash
 npm install          # Install dependencies for all packages
 npm run build        # Build all packages with tsup
-npm test             # Run all tests (712 total: 697 giti + 15 framework)
+npm test             # Run all tests (782 total: 767 giti + 15 framework)
 npm run lint         # Type-check all packages with tsc
 ```
 
