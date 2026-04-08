@@ -1,6 +1,6 @@
 import type { EventType } from '../types.js';
 import type { KnowledgeBase, QueryResult } from './types.js';
-import { loadKnowledgeBase, saveKnowledgeBase, createEvent, recordEvent } from './store.js';
+import { loadKnowledgeBase, saveKnowledgeBase, createEvent, recordEvent, getMemoryIndex } from './store.js';
 import { curateKnowledgeBase } from './curator.js';
 import { queryKnowledgeBase } from './query.js';
 
@@ -26,3 +26,5 @@ export async function queryMemory(repoPath: string, query: string): Promise<Quer
 export async function getMemorySummary(repoPath: string): Promise<KnowledgeBase> {
   return loadKnowledgeBase(repoPath);
 }
+
+export { getMemoryIndex };
