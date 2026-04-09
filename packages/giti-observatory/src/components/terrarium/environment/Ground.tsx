@@ -76,6 +76,7 @@ export function Ground({ lushness }: Props) {
       rotation={[-Math.PI / 2, 0, 0]}
       position={[0, -1.0, 0]}
       receiveShadow
+      renderOrder={0}
     >
       <circleGeometry args={[12, 64]} />
       <shaderMaterial
@@ -83,6 +84,7 @@ export function Ground({ lushness }: Props) {
         fragmentShader={groundFragShader}
         uniforms={uniforms}
         transparent
+        depthWrite={true}
       />
     </mesh>
   );

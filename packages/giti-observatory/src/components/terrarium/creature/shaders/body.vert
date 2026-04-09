@@ -62,13 +62,22 @@ void main() {
   float breathScale = 1.0 + breath * 0.12;
 
   // Organic noise displacement
-  float noise = snoise(position * uNoiseScale + uTime * 0.15);
+  vec3 noiseInput = position * uNoiseScale + uTime * 0.15;
+  float noise = snoise(noiseInput);
   float displacement = noise * uDisplacement;
 
   // Apply displacement along normal
   vec3 displaced = position * breathScale + normal * displacement;
 
-  vNormal = normalMatrix * normal;
+  // Approximate displaced normal via finite differences for smooth shading
+  float eps = 0.01;
+  float nx = snoise(noiseInput + vec3(eps, 0.0, 0.0)) - snoise(noiseInput - vec3(eps, 0.0, 0.0));
+  float ny = snoise(noiseInput + vec3(0.0, eps, 0.0)) - snoise(noiseInput - vec3(0.0, eps, 0.0));
+  float nz = snoise(noiseInput + vec3(0.0, 0.0, eps)) - snoise(noiseInput - vec3(0.0, 0.0, eps));
+  vec3 noiseGrad = vec3(nx, ny, nz) / (2.0 * eps);
+  vec3 displacedNormal = normalize(normal - noiseGrad * uDisplacement * 0.5);
+
+  vNormal = normalMatrix * displacedNormal;
   vPosition = (modelViewMatrix * vec4(displaced, 1.0)).xyz;
   vDisplacement = displacement;
 

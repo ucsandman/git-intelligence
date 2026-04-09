@@ -8,8 +8,6 @@ import * as THREE from 'three';
 // @react-spring/three animated wrappers need casts for R3F intrinsic elements
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const AnimatedMesh = animated.mesh as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const AnimatedMeshPhysicalMaterial = animated.meshPhysicalMaterial as any;
 
 interface OrganProps {
   name: string;
@@ -21,7 +19,7 @@ interface OrganProps {
   maturity: number;
 }
 
-function Organ({ name, position, color, emissiveColor, scale, active, maturity }: OrganProps) {
+function Organ({ name, position, color: _color, emissiveColor, scale, active, maturity }: OrganProps) {
   const meshRef = useRef<THREE.Mesh>(null);
 
   const springs = useSpring({
@@ -44,17 +42,14 @@ function Organ({ name, position, color, emissiveColor, scale, active, maturity }
   if (maturity < 0.1) return null;
 
   return (
-    <AnimatedMesh ref={meshRef} position={position}>
-      <sphereGeometry args={[0.12, 16, 16]} />
-      <AnimatedMeshPhysicalMaterial
-        color={color}
-        emissive={emissiveColor}
-        emissiveIntensity={springs.emissiveIntensity}
-        transmission={0.5}
-        thickness={0.3}
-        roughness={0.2}
+    <AnimatedMesh ref={meshRef} position={position} renderOrder={2}>
+      <sphereGeometry args={[0.10, 12, 12]} />
+      <meshBasicMaterial
+        color={emissiveColor}
         transparent
-        opacity={Math.min(1, maturity * 2.5)}
+        opacity={Math.min(0.7, maturity * 1.5) * (active ? 1.0 : 0.4)}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
       />
     </AnimatedMesh>
   );

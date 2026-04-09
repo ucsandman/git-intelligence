@@ -55,15 +55,15 @@ export function CreatureBody({ mood, size, bioluminescence }: Props) {
   });
 
   return (
-    <mesh ref={meshRef} scale={size}>
-      <icosahedronGeometry args={[1, 5]} />
+    <mesh ref={meshRef} scale={size} renderOrder={1}>
+      <icosahedronGeometry args={[1, 6]} />
       <shaderMaterial
         vertexShader={bodyVert}
         fragmentShader={bodyFrag}
         uniforms={uniforms}
         transparent
         side={THREE.DoubleSide}
-        depthWrite={true}
+        depthWrite={false}
       />
     </mesh>
   );
