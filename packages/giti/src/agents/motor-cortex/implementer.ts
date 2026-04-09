@@ -9,6 +9,7 @@ export interface AgentImplementationResult {
   durationMs: number;
   summary: string;
   sessionId?: string;
+  patchContent?: string;
   error?: string;
 }
 
@@ -32,9 +33,11 @@ const SYSTEM_PROMPT = `You are the Motor Cortex of a living codebase organism ca
 4. Run \`cd packages/giti && npx vitest run\` to verify tests pass
 5. If tests fail, read the error output and fix the issues
 6. When done, commit your changes with a descriptive message
-7. Push the branch to origin
+7. Do NOT push. Instead, run: git format-patch main --stdout > /tmp/organism-patch.txt
+8. Then run: cat /tmp/organism-patch.txt
+   This outputs the patch so the organism can apply it locally.
 
-Keep changes minimal and focused. If you cannot complete the task, explain why and stop.`;
+Keep changes minimal and focused. Do NOT attempt git push — it will fail. If you cannot complete the task, explain why and stop.`;
 
 function buildPrompt(context: ImplementationContext): string {
   const successCriteria = context.success_criteria.map((c) => `- ${c}`).join('\n');
@@ -65,7 +68,7 @@ ${lessons}
 
 ${context.target_files.length > 0 ? `## Target Files (start here)\n${context.target_files.join('\n')}` : '## No specific target files — explore the codebase to find the right files.'}
 
-Create a new git branch named "organism/motor/${context.work_item_id.slice(0, 8)}" from main, make your changes there, run tests, commit, and push.`;
+Create a new git branch from main, make your changes there, run tests, and commit. Do NOT push — output the patch instead as instructed.`;
 }
 
 async function ensureAgent(client: Anthropic): Promise<string> {
@@ -166,13 +169,16 @@ export async function implementWithAgent(
     });
     console.log('[motor-cortex] Work item sent, streaming events...');
 
-    // Stream events and log activity
+    // Stream events, log activity, and capture patch output
+    let patchContent = '';
+    let lastToolName = '';
     const stream = await client.beta.sessions.events.stream(session.id);
     for await (const event of stream) {
-      const eventType = (event as unknown as Record<string, unknown>)['type'] as string;
+      const ev = event as unknown as Record<string, unknown>;
+      const eventType = ev['type'] as string;
 
       if (eventType === 'agent.message') {
-        const content = (event as unknown as Record<string, unknown>)['content'] as Array<Record<string, unknown>>;
+        const content = ev['content'] as Array<Record<string, unknown>>;
         if (content) {
           for (const block of content) {
             if (block['type'] === 'text') {
@@ -182,12 +188,28 @@ export async function implementWithAgent(
           }
         }
       } else if (eventType === 'agent.tool_use') {
-        const name = (event as unknown as Record<string, unknown>)['name'] as string;
-        const input = JSON.stringify((event as unknown as Record<string, unknown>)['input']).substring(0, 80);
+        const name = ev['name'] as string;
+        lastToolName = name;
+        const input = JSON.stringify(ev['input']).substring(0, 80);
         console.log(`[motor-cortex]   -> ${name}(${input}...)`);
         turns++;
+      } else if (eventType === 'agent.tool_result') {
+        // Capture patch from bash tool results containing git format-patch output
+        const content = ev['content'] as Array<Record<string, unknown>> | undefined;
+        if (content && lastToolName === 'bash') {
+          for (const block of content) {
+            if (block['type'] === 'text') {
+              const text = String(block['text']);
+              // Detect git format-patch output (starts with "From " or contains "diff --git")
+              if (text.includes('diff --git') || text.startsWith('From ')) {
+                patchContent = text;
+                console.log(`[motor-cortex]   Captured patch (${patchContent.length} bytes)`);
+              }
+            }
+          }
+        }
       } else if (eventType === 'session.error') {
-        const err = (event as unknown as Record<string, unknown>)['error'] as Record<string, unknown>;
+        const err = ev['error'] as Record<string, unknown>;
         const msg = err?.['message'] as string ?? 'Unknown error';
         const retryStatus = (err?.['retry_status'] as Record<string, unknown>)?.['type'] as string;
         console.log(`[motor-cortex]   ERROR: ${msg} (${retryStatus})`);
@@ -195,7 +217,7 @@ export async function implementWithAgent(
           error = msg;
         }
       } else if (eventType === 'session.status_idle') {
-        const stopReason = (event as unknown as Record<string, unknown>)['stop_reason'] as Record<string, unknown>;
+        const stopReason = ev['stop_reason'] as Record<string, unknown>;
         const stopType = stopReason?.['type'] as string;
         console.log(`[motor-cortex] Session idle: ${stopType}`);
         if (stopType === 'end_turn') {
@@ -237,15 +259,20 @@ export async function implementWithAgent(
     const uniqueFiles = [...new Set(filesChanged)];
     console.log(`[motor-cortex] Files changed: ${uniqueFiles.length}`);
 
+    if (patchContent) {
+      console.log(`[motor-cortex] Patch captured: ${patchContent.length} bytes`);
+    }
+
     return {
-      success: success && uniqueFiles.length > 0,
+      success: success && (uniqueFiles.length > 0 || patchContent.length > 0),
       filesChanged: uniqueFiles,
       tokensUsed,
       turns,
       durationMs: Date.now() - startTime,
       summary,
       sessionId,
-      error: uniqueFiles.length === 0 && !error ? 'Agent completed but made no valid source file changes' : error,
+      patchContent: patchContent || undefined,
+      error: uniqueFiles.length === 0 && !patchContent && !error ? 'Agent completed but made no valid source file changes' : error,
     };
   } catch (err: unknown) {
     error = err instanceof Error ? err.message : String(err);
