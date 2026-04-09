@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import type { CycleOptions, CycleResult } from './types.js';
 import type { StateReport } from '../sensory-cortex/types.js';
 import type { WorkItem } from '../prefrontal-cortex/types.js';
@@ -46,6 +48,24 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
     if (await safety.isKillSwitchActive(repoPath)) return makeResult(cycle, startTime, 'aborted');
     const plan = await runPrefrontalCortex(repoPath, report);
     await recordMemoryEvent(repoPath, 'plan-created', `Planned ${plan.selected_items.length} items`, { cycle, items: plan.selected_items.length });
+
+    // If planner selected nothing, check backlog for manually-seeded planned items
+    if (plan.selected_items.length === 0) {
+      const backlogDir = path.join(repoPath, '.organism', 'backlog');
+      try {
+        const files = await fs.readdir(backlogDir);
+        for (const file of files) {
+          if (!file.endsWith('.json')) continue;
+          const raw = await fs.readFile(path.join(backlogDir, file), 'utf-8');
+          const item = JSON.parse(raw) as WorkItem;
+          if (item.status === 'planned') {
+            plan.selected_items.push(item);
+          }
+        }
+      } catch {
+        // No backlog dir or read error — that's fine
+      }
+    }
 
     if (plan.selected_items.length === 0) {
       await recordMemoryEvent(repoPath, 'cycle-complete', `Cycle ${cycle} stable`, { cycle, outcome: 'stable' });
