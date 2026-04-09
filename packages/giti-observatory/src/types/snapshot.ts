@@ -52,6 +52,7 @@ export interface CycleDigest {
   api_tokens_used: number;
   duration_ms: number;
   milestone?: string;
+  events?: Array<{ type: string; agent: string; summary: string }>;
 }
 
 export interface OrganismEventDigest {

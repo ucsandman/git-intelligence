@@ -254,6 +254,11 @@ export async function buildSnapshot(
     const rejected = nearbyEvents.filter((e) => e.type === 'change-rejected').length;
     const growth = nearbyEvents.filter((e) => e.type === 'growth-proposed').length;
 
+    // Attach event summaries for expanded view
+    const cycleEvents = nearbyEvents
+      .filter((e) => e.type !== 'cycle-started' && e.type !== 'cycle-complete')
+      .map((e) => ({ type: e.type, agent: e.agent, summary: e.summary }));
+
     return {
       cycle: index + 1,
       timestamp: report.timestamp,
@@ -263,6 +268,7 @@ export async function buildSnapshot(
       growth_proposals: growth,
       api_tokens_used: 0,
       duration_ms: 0,
+      events: cycleEvents.length > 0 ? cycleEvents : undefined,
     };
   });
 
