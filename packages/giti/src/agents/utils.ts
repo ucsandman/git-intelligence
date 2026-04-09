@@ -46,6 +46,7 @@ export function runCommand(command: string, args: string[], cwd: string): { stdo
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 120_000,
+      shell: process.platform === 'win32',
     });
     return { stdout, stderr: '', status: 0 };
   } catch (error: unknown) {

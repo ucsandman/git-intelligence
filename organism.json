@@ -58,7 +58,7 @@
 
   "lifecycle": {
     "cycle_frequency": "daily",
-    "max_changes_per_cycle": 3,
+    "max_changes_per_cycle": 1,
     "mandatory_cooldown_after_regression": "48 hours",
     "branch_naming": "organism/{cortex}/{description}",
     "requires_immune_approval": true
