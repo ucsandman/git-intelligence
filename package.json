@@ -6,5 +6,8 @@
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces"
+  },
+  "overrides": {
+    "vite": "^8.0.5"
   }
 }
