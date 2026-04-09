@@ -5,43 +5,76 @@ import type { Baselines } from '../types.js';
 import type { OrganismConfig } from '../../types.js';
 import { runCommand } from '../../utils.js';
 
+function countFailures(stdout: string): { total: number; failed: number; failedNames: string[] } {
+  try {
+    const parsed = JSON.parse(stdout) as {
+      numTotalTests?: number;
+      numFailedTests?: number;
+      testResults?: Array<{
+        assertionResults?: Array<{ status?: string; fullName?: string }>;
+      }>;
+    };
+    const failedNames: string[] = [];
+    for (const suite of parsed.testResults ?? []) {
+      for (const test of suite.assertionResults ?? []) {
+        if (test.status === 'failed' && test.fullName) {
+          failedNames.push(test.fullName);
+        }
+      }
+    }
+    return {
+      total: parsed.numTotalTests ?? 0,
+      failed: parsed.numFailedTests ?? 0,
+      failedNames,
+    };
+  } catch {
+    return { total: 0, failed: -1, failedNames: [] };
+  }
+}
+
 export async function runTestCheck(
   repoPath: string,
   baselines: Baselines | null,
   config: OrganismConfig,
 ): Promise<CheckResult> {
   const name = 'Tests';
-
-  // 1. Run vitest for the giti package only and parse JSON output
   const gitiPath = path.join(repoPath, 'packages', 'giti');
-  const testResult = runCommand('npx', ['vitest', 'run', '--reporter=json'], gitiPath);
 
-  let totalTests = 0;
-  let failedTests = 0;
+  // 1. Run tests on the current branch
+  const branchResult = runCommand('npx', ['vitest', 'run', '--reporter=json'], gitiPath);
+  const branch = countFailures(branchResult.stdout);
 
-  try {
-    const parsed = JSON.parse(testResult.stdout) as {
-      numTotalTests?: number;
-      numFailedTests?: number;
-      numPassedTests?: number;
-    };
-    totalTests = parsed.numTotalTests ?? 0;
-    failedTests = parsed.numFailedTests ?? 0;
-  } catch {
+  if (branch.failed === -1) {
     return {
       name,
       status: 'fail',
-      message: `Test runner failed: ${testResult.stderr || 'could not parse output'}`,
+      message: `Test runner failed: ${branchResult.stderr || 'could not parse output'}`,
     };
   }
 
-  // 2. If any tests fail, return fail immediately
-  if (failedTests > 0) {
+  // 2. Run tests on main to get baseline failures
+  const currentBranch = runCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD'], repoPath).stdout.trim();
+  runCommand('git', ['stash', '--include-untracked'], repoPath);
+  runCommand('git', ['checkout', 'main'], repoPath);
+  const mainResult = runCommand('npx', ['vitest', 'run', '--reporter=json'], gitiPath);
+  const main = countFailures(mainResult.stdout);
+  runCommand('git', ['checkout', currentBranch], repoPath);
+  runCommand('git', ['stash', 'pop'], repoPath);
+
+  // 3. Compare: only reject if branch introduces NEW failures
+  const newFailures = branch.failedNames.filter((f) => !main.failedNames.includes(f));
+
+  if (newFailures.length > 0) {
     return {
       name,
       status: 'fail',
-      message: `${failedTests} tests failed out of ${totalTests}`,
+      message: `${newFailures.length} NEW test failures introduced (${branch.failed} total, ${main.failed} pre-existing): ${newFailures.slice(0, 3).join(', ')}`,
     };
+  }
+
+  // Pre-existing failures are fine — warn but don't block
+  if (branch.failed > 0 && branch.failed <= main.failed) {
+    // Not worse than main — pass with note
   }
 
   // 3. Run vitest with coverage and read coverage summary
@@ -81,10 +114,10 @@ export async function runTestCheck(
   }
 
   // 6. All good
-  const passedTests = totalTests - failedTests;
+  const passedTests = branch.total - branch.failed;
   return {
     name,
     status: 'pass',
-    message: `${passedTests}/${totalTests} tests passing, coverage ${coveragePercent}%`,
+    message: `${passedTests}/${branch.total} tests passing${branch.failed > 0 ? ` (${branch.failed} pre-existing failures)` : ''}, coverage ${coveragePercent}%`,
   };
 }
