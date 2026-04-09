@@ -60,9 +60,9 @@ export function TerrariumCanvas() {
 
         <EffectComposer>
           <Bloom
-            luminanceThreshold={0.3}
-            luminanceSmoothing={0.8}
-            intensity={1.2}
+            luminanceThreshold={0.8}
+            luminanceSmoothing={0.4}
+            intensity={0.4}
           />
           <Vignette
             eskil={false}

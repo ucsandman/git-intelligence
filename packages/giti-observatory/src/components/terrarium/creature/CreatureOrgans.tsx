@@ -25,7 +25,7 @@ function Organ({ name, position, color, emissiveColor, scale, active, maturity }
   const meshRef = useRef<THREE.Mesh>(null);
 
   const springs = useSpring({
-    emissiveIntensity: active ? 2.5 : 0.8,
+    emissiveIntensity: active ? 1.0 : 0.3,
     scale: active ? scale * 1.3 : scale,
     config: { tension: 120, friction: 14 },
   });

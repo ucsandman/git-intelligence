@@ -32,18 +32,18 @@ export function EnergyPool({ level }: Props) {
     <mesh
       ref={meshRef}
       rotation={[-Math.PI / 2, 0, 0]}
-      position={[3.5, -0.45, -2]}
+      position={[4, -0.9, -3]}
     >
-      <circleGeometry args={[0.8 + level * 0.4, 32]} />
+      <circleGeometry args={[0.4 + level * 0.2, 32]} />
       <meshPhysicalMaterial
         color={color}
         emissive={emissive}
-        emissiveIntensity={0.5}
+        emissiveIntensity={0.2}
         transmission={0.4}
         thickness={0.5}
         roughness={0.1}
         transparent
-        opacity={0.5 + level * 0.3}
+        opacity={0.3 + level * 0.2}
       />
     </mesh>
   );
