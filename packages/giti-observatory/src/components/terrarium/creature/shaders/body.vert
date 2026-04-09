@@ -57,9 +57,9 @@ float snoise(vec3 v) {
 }
 
 void main() {
-  // Breathing: asymmetric scale (inhale slower than exhale)
+  // Breathing: asymmetric scale (inhale slower than exhale) — visible movement
   float breath = sin(uBreathPhase) * 0.5 + 0.5;
-  float breathScale = 1.0 + breath * 0.04;
+  float breathScale = 1.0 + breath * 0.12;
 
   // Organic noise displacement
   float noise = snoise(position * uNoiseScale + uTime * 0.15);

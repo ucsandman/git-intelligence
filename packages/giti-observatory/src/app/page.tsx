@@ -42,18 +42,22 @@ export default function ObservatoryPage() {
 
   return (
     <ObservatoryProvider provider={provider}>
-      <main className="flex flex-col min-h-screen">
+      <main className="flex flex-col min-h-screen bg-terrarium-surface">
         <IntroOverlay />
         {/* Layer 1: Vitals Strip */}
         <VitalsStrip />
 
         {/* Layer 2: Terrarium Canvas */}
-        <div className="h-[55vh] w-full">
+        <div className="h-[55vh] w-full relative">
           <TerrariumScene />
+          {/* Gradient transition from canvas to journal */}
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-b from-transparent to-terrarium-surface pointer-events-none" />
         </div>
 
         {/* Layer 3: Growth Journal */}
-        <GrowthJournal onShowInTerrarium={setTimelineCycle} />
+        <div className="bg-terrarium-surface">
+          <GrowthJournal onShowInTerrarium={setTimelineCycle} />
+        </div>
       </main>
     </ObservatoryProvider>
   );

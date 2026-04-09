@@ -31,7 +31,7 @@ export function Creature({ creature }: Props) {
   });
 
   return (
-    <Float speed={0.8} rotationIntensity={0.1} floatIntensity={0.3}>
+    <Float speed={0.8} rotationIntensity={0.1} floatIntensity={0.4}>
       <group
         ref={groupRef}
         position={[0, 0.8, 0]}
@@ -43,6 +43,14 @@ export function Creature({ creature }: Props) {
         onClick={() => setClicked(!clicked)}
       >
         <CursorTracker groupRef={groupRef} />
+        {/* Bioluminescent point light — creature illuminates nearby ground */}
+        <pointLight
+          color="#4ad4d4"
+          intensity={1.5 * creature.bioluminescence}
+          distance={6}
+          decay={2}
+          position={[0, -0.3, 0]}
+        />
         <CreatureBody
           mood={creature.mood}
           size={creature.size}

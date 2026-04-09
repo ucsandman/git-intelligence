@@ -11,7 +11,7 @@ export function VitalsStrip() {
 
   if (!snapshot || !scene) {
     return (
-      <header className="h-12 bg-terrarium-soil border-b border-terrarium-soil-light flex items-center px-4">
+      <header className="h-12 bg-terrarium-soil/60 backdrop-blur-md border-b border-terrarium-soil-light/20 flex items-center px-4">
         <span className="text-terrarium-text-muted text-sm">Loading...</span>
       </header>
     );
@@ -32,7 +32,7 @@ export function VitalsStrip() {
   const velocitySpark = recentHistory.map((c) => c.changes_merged);
 
   return (
-    <header className="h-12 bg-terrarium-soil border-b border-terrarium-soil-light/50 flex items-center justify-between px-4 gap-6">
+    <header className="h-12 bg-terrarium-soil/60 backdrop-blur-md border-b border-terrarium-soil-light/20 flex items-center justify-between px-4 gap-6 relative z-10">
       <div className="flex items-center gap-4">
         <StateIndicator
           state={snapshot.organism.current_state}

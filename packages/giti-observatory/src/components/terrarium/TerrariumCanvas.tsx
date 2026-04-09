@@ -2,8 +2,8 @@
 
 import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { OrbitControls, Stars } from '@react-three/drei';
+import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { useObservatory } from '@/data/provider-context';
 import { DayNightLighting } from './lighting/DayNightLighting';
 import { Ground } from './environment/Ground';
@@ -21,12 +21,23 @@ export function TerrariumCanvas() {
 
   return (
     <Canvas
-      camera={{ position: [0, 4, 8], fov: 50 }}
+      camera={{ position: [0, 3, 6], fov: 50 }}
       dpr={[0.5, 2]}
       gl={{ antialias: true, alpha: false }}
-      style={{ background: '#0f0d0a' }}
+      style={{ background: '#0a0908' }}
     >
       <Suspense fallback={null}>
+        {/* Starfield background for depth and atmosphere */}
+        <Stars
+          radius={50}
+          depth={40}
+          count={1500}
+          factor={2}
+          saturation={0.2}
+          fade
+          speed={0.3}
+        />
+
         <DayNightLighting timeOfDay={scene.environment.timeOfDay} />
         <Ground lushness={scene.environment.groundLushness} />
         <Flora flora={scene.environment.flora} />
@@ -40,18 +51,23 @@ export function TerrariumCanvas() {
         <OrbitControls
           enablePan={false}
           enableZoom={true}
-          minDistance={4}
+          minDistance={3}
           maxDistance={15}
           maxPolarAngle={Math.PI / 2.2}
           autoRotate
-          autoRotateSpeed={0.3}
+          autoRotateSpeed={0.15}
         />
 
         <EffectComposer>
           <Bloom
-            luminanceThreshold={0.6}
-            luminanceSmoothing={0.9}
-            intensity={0.8}
+            luminanceThreshold={0.3}
+            luminanceSmoothing={0.8}
+            intensity={1.2}
+          />
+          <Vignette
+            eskil={false}
+            offset={0.25}
+            darkness={0.6}
           />
         </EffectComposer>
       </Suspense>

@@ -8,24 +8,36 @@ varying vec3 vPosition;
 varying float vDisplacement;
 
 void main() {
-  // Fresnel rim lighting (jellyfish edge glow)
+  // Fresnel rim lighting (strong jellyfish edge glow)
   vec3 viewDir = normalize(-vPosition);
-  float fresnel = pow(1.0 - max(dot(viewDir, normalize(vNormal)), 0.0), 3.0);
+  float rawFresnel = 1.0 - max(dot(viewDir, normalize(vNormal)), 0.0);
+  float fresnel = pow(rawFresnel, 2.0);
+  float hardRim = pow(rawFresnel, 5.0);
 
   // Base color with displacement-based variation
-  vec3 color = uBaseColor + vDisplacement * 0.3;
+  vec3 color = uBaseColor * 1.4 + vDisplacement * 0.4;
 
-  // Bioluminescent glow (stronger at edges via fresnel)
-  vec3 glow = uGlowColor * fresnel * uBioluminescence;
+  // Strong bioluminescent rim glow (jellyfish edge)
+  vec3 rimGlow = uGlowColor * 2.5 * fresnel * uBioluminescence;
 
-  // Pulsing internal glow
-  float pulse = sin(uTime * 0.8) * 0.5 + 0.5;
-  vec3 internalGlow = uGlowColor * pulse * uBioluminescence * 0.3 * (1.0 - fresnel);
+  // Hot white rim at the very edge
+  vec3 hotRim = vec3(1.0, 0.98, 0.95) * hardRim * uBioluminescence * 1.2;
 
-  vec3 finalColor = color + glow + internalGlow;
+  // Multi-frequency pulsing internal glow (visible breathing light)
+  float pulse1 = sin(uTime * 0.8) * 0.5 + 0.5;
+  float pulse2 = sin(uTime * 1.3 + 1.0) * 0.3 + 0.5;
+  float pulse3 = sin(uTime * 0.3) * 0.2 + 0.5;
+  float combinedPulse = pulse1 * 0.5 + pulse2 * 0.3 + pulse3 * 0.2;
+  vec3 internalGlow = uGlowColor * combinedPulse * uBioluminescence * 0.8 * (1.0 - fresnel * 0.5);
 
-  // Translucency: higher alpha at edges, more transparent in center
-  float alpha = 0.4 + fresnel * 0.5;
+  // Subsurface scattering approximation (light passing through the body)
+  float sss = pow(max(dot(viewDir, normalize(vNormal)), 0.0), 1.5);
+  vec3 subsurface = uGlowColor * sss * uBioluminescence * 0.4 * combinedPulse;
+
+  vec3 finalColor = color + rimGlow + hotRim + internalGlow + subsurface;
+
+  // Translucency: higher alpha at edges, semi-transparent center shows depth
+  float alpha = 0.35 + fresnel * 0.55 + combinedPulse * 0.1;
 
   gl_FragColor = vec4(finalColor, alpha);
 }

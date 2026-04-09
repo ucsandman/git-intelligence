@@ -25,8 +25,8 @@ function Organ({ name, position, color, emissiveColor, scale, active, maturity }
   const meshRef = useRef<THREE.Mesh>(null);
 
   const springs = useSpring({
-    emissiveIntensity: active ? 1.5 : 0.3,
-    scale: active ? scale * 1.2 : scale,
+    emissiveIntensity: active ? 2.5 : 0.8,
+    scale: active ? scale * 1.3 : scale,
     config: { tension: 120, friction: 14 },
   });
 
@@ -50,11 +50,11 @@ function Organ({ name, position, color, emissiveColor, scale, active, maturity }
         color={color}
         emissive={emissiveColor}
         emissiveIntensity={springs.emissiveIntensity}
-        transmission={0.3}
-        thickness={0.5}
-        roughness={0.3}
+        transmission={0.5}
+        thickness={0.3}
+        roughness={0.2}
         transparent
-        opacity={Math.min(1, maturity * 2)}
+        opacity={Math.min(1, maturity * 2.5)}
       />
     </AnimatedMesh>
   );

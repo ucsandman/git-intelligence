@@ -14,31 +14,43 @@ const AnimatedDirectionalLight = animated.directionalLight as any;
 
 const lightingPresets: Record<
   TimeOfDay,
-  { ambient: string; ambientIntensity: number; directional: string; directionalIntensity: number }
+  { ambient: string; ambientIntensity: number; directional: string; directionalIntensity: number; hemiSky: string; hemiGround: string; hemiIntensity: number }
 > = {
   day: {
     ambient: '#fdf6e3',
-    ambientIntensity: 0.4,
+    ambientIntensity: 0.5,
     directional: '#fff5db',
-    directionalIntensity: 0.8,
+    directionalIntensity: 0.9,
+    hemiSky: '#c8daf0',
+    hemiGround: '#2a3a14',
+    hemiIntensity: 0.3,
   },
   dusk: {
     ambient: '#d4a04a',
-    ambientIntensity: 0.25,
+    ambientIntensity: 0.35,
     directional: '#e8a040',
-    directionalIntensity: 0.5,
+    directionalIntensity: 0.6,
+    hemiSky: '#e08040',
+    hemiGround: '#1a2010',
+    hemiIntensity: 0.25,
   },
   night: {
-    ambient: '#1a2a3a',
-    ambientIntensity: 0.15,
-    directional: '#2a4a6a',
-    directionalIntensity: 0.2,
+    ambient: '#2a3a4a',
+    ambientIntensity: 0.3,
+    directional: '#3a5a7a',
+    directionalIntensity: 0.3,
+    hemiSky: '#1a2a4a',
+    hemiGround: '#0a1a0a',
+    hemiIntensity: 0.2,
   },
   dawn: {
     ambient: '#c8a070',
-    ambientIntensity: 0.3,
+    ambientIntensity: 0.4,
     directional: '#e8c090',
-    directionalIntensity: 0.6,
+    directionalIntensity: 0.7,
+    hemiSky: '#d0a080',
+    hemiGround: '#1a2a14',
+    hemiIntensity: 0.25,
   },
 };
 
@@ -69,7 +81,12 @@ export function DayNightLighting({ timeOfDay }: Props) {
         position={[5, 8, 3]}
         castShadow
       />
-      <fog attach="fog" args={['#0f0d0a', 10, 30]} />
+      {/* Hemisphere light for natural sky/ground fill */}
+      <hemisphereLight
+        args={[preset.hemiSky, preset.hemiGround, preset.hemiIntensity]}
+      />
+      {/* Fog tuned for depth without washing out the scene */}
+      <fog attach="fog" args={['#0a0908', 12, 40]} />
     </>
   );
 }

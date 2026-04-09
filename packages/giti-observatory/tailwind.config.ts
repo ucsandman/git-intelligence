@@ -34,8 +34,8 @@ const config: Config = {
       },
       keyframes: {
         breathe: {
-          '0%, 100%': { transform: 'scale(1)', opacity: '0.8' },
-          '40%': { transform: 'scale(1.03)', opacity: '1' },
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.6' },
+          '40%': { transform: 'scale(1.15)', opacity: '1' },
         },
       },
     },
