@@ -82,11 +82,12 @@ export async function implementWithAgent(
       prompt,
       options: {
         cwd: repoPath,
-        model: 'claude-opus-4-6',
+        model: process.env['GITI_MODEL'] ?? 'claude-sonnet-4-6',
+        pathToClaudeCodeExecutable: process.env['CLAUDE_CODE_PATH'] ?? 'claude',
         allowedTools: ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep'],
         permissionMode: 'acceptEdits',
-        maxTurns: 20,
-        maxBudgetUsd: 1.00,
+        maxTurns: 15,
+        maxBudgetUsd: 0.50,
       },
     })) {
       if (message.type === 'result') {

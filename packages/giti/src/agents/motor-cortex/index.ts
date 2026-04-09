@@ -51,6 +51,10 @@ export async function runMotorCortex(
     current_file_contents: {},
   };
 
+  // Clean working directory before starting — prevents pollution from previous agents
+  runCommand('git', ['checkout', '--', '.'], repoPath);
+  runCommand('git', ['clean', '-fd', '--exclude=.organism', '--exclude=node_modules', '--exclude=.next', '--exclude=dist'], repoPath);
+
   const branchName = generateBranchName(workItem.title);
   await createBranch(repoPath, branchName);
 
