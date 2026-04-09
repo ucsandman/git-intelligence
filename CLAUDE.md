@@ -134,6 +134,8 @@ All commands run from the repo root via npm workspaces:
 - `ANTHROPIC_API_KEY` — required for build/cycle/organism commands
 - `GITHUB_TOKEN` or `GH_TOKEN` — required for Managed Agents (fine-grained PAT with Contents: Read+Write on the repo)
 - `GITI_MODEL` — model for motor cortex (default: claude-sonnet-4-6)
+- `DASHCLAW_URL` — DashClaw instance URL for governance (guard/approval/audit)
+- `DASHCLAW_API_KEY` — DashClaw API key for governance integration
 - `OPENCLAW_API_KEY` — optional observability
 - `GITI_API_BUDGET` — monthly token limit (default: 100000)
 - `GITI_SUPERVISED` — require human approval for merges

@@ -13,6 +13,7 @@ import { mergeBranch, deleteBranch, switchToMain, pushBranch } from '../motor-co
 import { runGrowthHormone } from '../growth-hormone/index.js';
 import { createGitHubClient } from '../../integrations/github/client.js';
 import { formatPRBody, formatPRTitle, getPRLabels } from '../../integrations/github/pr-formatter.js';
+import { isGovernanceEnabled, guardCodeChange, waitForApproval, recordOutcome } from '../../integrations/dashclaw/governance.js';
 
 export async function runLifecycleCycle(options: CycleOptions): Promise<CycleResult> {
   const { repoPath, supervised } = options;
@@ -103,15 +104,52 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
       }
     }
 
+    // Phase 4.5: DASHCLAW GOVERNANCE (if configured)
+    const governedBranches: string[] = [];
+    if (isGovernanceEnabled() && governedBranches.length > 0) {
+      for (const branch of governedBranches) {
+        const workItem = branchToWorkItem.get(branch) ?? plan.selected_items[0]!;
+        const buildResult = buildResults.find((r) => r.branch_name === branch);
+        const decision = await guardCodeChange({
+          workItemTitle: workItem.title,
+          branchName: branch,
+          filesChanged: buildResult?.files_modified ?? [],
+          testsPass: buildResult?.pre_review_check.tests_pass ?? false,
+          cycleNumber: cycle,
+        });
+
+        if (decision.allowed) {
+          governedBranches.push(branch);
+          await recordMemoryEvent(repoPath, 'change-approved', `DashClaw approved: ${branch}`, { cycle, branch, actionId: decision.actionId });
+        } else if (decision.requiresApproval) {
+          console.log(`[cycle] DashClaw requires human approval for: ${branch}`);
+          const approval = await waitForApproval(decision.actionId, 300_000);
+          if (approval.approved) {
+            governedBranches.push(branch);
+            await recordMemoryEvent(repoPath, 'change-approved', `Human approved via DashClaw: ${branch}`, { cycle, branch, actionId: decision.actionId });
+          } else {
+            await recordMemoryEvent(repoPath, 'merge-declined-by-human', `Human denied via DashClaw: ${branch} — ${approval.reason}`, { cycle, branch, actionId: decision.actionId });
+            await recordOutcome(decision.actionId, { status: 'failed', result_summary: `Denied: ${approval.reason}` });
+          }
+        } else {
+          await recordMemoryEvent(repoPath, 'change-rejected', `DashClaw blocked: ${branch} — ${decision.reason}`, { cycle, branch, actionId: decision.actionId });
+          await recordOutcome(decision.actionId, { status: 'failed', result_summary: `Blocked: ${decision.reason}` });
+        }
+      }
+    } else {
+      // No DashClaw — all immune-approved branches proceed
+      governedBranches.push(...approvedBranches);
+    }
+
     // Phase 5: COMMIT
     let mergedCount = 0;
     const githubClient = createGitHubClient();
 
-    if (githubClient && approvedBranches.length > 0) {
+    if (githubClient && governedBranches.length > 0) {
       // GitHub PR workflow
       const autoMerge = process.env['GITI_AUTO_MERGE'] === 'true';
       const autoMergeDelay = Math.min(parseInt(process.env['GITI_AUTO_MERGE_DELAY'] ?? '3600000', 10), 10000);
-      for (const branch of approvedBranches) {
+      for (const branch of governedBranches) {
         try {
           await pushBranch(repoPath, branch);
           const workItem = branchToWorkItem.get(branch) ?? plan.selected_items[0]!;
@@ -133,9 +171,9 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
           await recordMemoryEvent(repoPath, 'merge-failed', `GitHub PR failed: ${branch}`, { cycle, branch, error: String(error) });
         }
       }
-    } else if (!supervised && approvedBranches.length > 0) {
+    } else if (!supervised && governedBranches.length > 0) {
       // Local merge workflow (fallback when GitHub is not configured)
-      for (const branch of approvedBranches) {
+      for (const branch of governedBranches) {
         try {
           await switchToMain(repoPath);
           await mergeBranch(repoPath, branch);
@@ -146,7 +184,7 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
           await recordMemoryEvent(repoPath, 'merge-failed', `Merge failed: ${branch}`, { cycle, branch, error: String(error) });
         }
       }
-    } else if (supervised && approvedBranches.length > 0) {
+    } else if (supervised && governedBranches.length > 0) {
       // In supervised mode, don't merge. Return for human confirmation.
       // Branches are left in place for manual merge.
       await recordMemoryEvent(repoPath, 'cycle-complete', `Cycle ${cycle} supervised — ${approvedBranches.length} branches await human merge`, { cycle, supervised: true, branches: approvedBranches });
