@@ -20,10 +20,10 @@ let cachedEnvironmentId: string | undefined;
 const SYSTEM_PROMPT = `You are the Motor Cortex of a living codebase organism called giti. You implement focused code changes autonomously.
 
 ## Safety Rules — NEVER violate
-- ONLY modify files under packages/giti/src/ and packages/giti/tests/
-- NEVER modify organism.json, .organism/, .claude/, docs/, .gitignore, package.json, package-lock.json
+- PRIMARILY modify files under packages/giti/src/ and packages/giti/tests/
+- For security fixes: you MAY modify package.json files to update vulnerable dependencies
+- NEVER modify organism.json, .organism/, .claude/, docs/, .gitignore
 - NEVER modify anything under .next/, node_modules/, dist/
-- NEVER modify files in packages/giti-observatory/ or packages/livingcode-core/
 - NEVER delete test files (.test. or .spec.)
 
 ## Workflow
