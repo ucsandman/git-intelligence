@@ -1,12 +1,28 @@
 import { watch } from 'chokidar';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile, access } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 
 export const dynamic = 'force-dynamic';
 
+async function findRepoRoot(startDir: string): Promise<string> {
+  let dir = startDir;
+  for (let i = 0; i < 10; i++) {
+    try {
+      await access(resolve(dir, '.organism'));
+      return dir;
+    } catch {
+      const parent = resolve(dir, '..');
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return startDir;
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const repoPath = url.searchParams.get('path') ?? process.env['GITI_REPO_PATH'] ?? process.cwd();
+  const explicit = url.searchParams.get('path') ?? process.env['GITI_REPO_PATH'];
+  const repoPath = explicit ?? await findRepoRoot(process.cwd());
   const organismDir = join(repoPath, '.organism');
 
   const encoder = new TextEncoder();

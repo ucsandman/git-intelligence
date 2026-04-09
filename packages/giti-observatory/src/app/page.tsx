@@ -48,7 +48,7 @@ export default function ObservatoryPage() {
         <VitalsStrip />
 
         {/* Layer 2: Terrarium Canvas */}
-        <div className="flex-1 min-h-[50vh]">
+        <div className="h-[55vh] w-full">
           <TerrariumScene />
         </div>
 
