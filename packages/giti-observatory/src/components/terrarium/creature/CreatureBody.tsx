@@ -11,12 +11,12 @@ const moodConfigs: Record<
   CreatureMood,
   { breathSpeed: number; noiseScale: number; displacement: number; baseColor: [number, number, number]; glowColor: [number, number, number] }
 > = {
-  content: { breathSpeed: 0.5, noiseScale: 1.2, displacement: 0.10, baseColor: [0.12, 0.35, 0.22], glowColor: [0.15, 0.5, 0.4] },
-  alert: { breathSpeed: 0.8, noiseScale: 1.5, displacement: 0.14, baseColor: [0.18, 0.42, 0.28], glowColor: [0.2, 0.55, 0.45] },
-  excited: { breathSpeed: 1.2, noiseScale: 1.8, displacement: 0.18, baseColor: [0.22, 0.48, 0.32], glowColor: [0.25, 0.6, 0.5] },
-  recoiling: { breathSpeed: 0.4, noiseScale: 2.0, displacement: 0.22, baseColor: [0.35, 0.12, 0.08], glowColor: [0.5, 0.15, 0.08] },
-  resting: { breathSpeed: 0.25, noiseScale: 0.8, displacement: 0.06, baseColor: [0.08, 0.22, 0.15], glowColor: [0.1, 0.3, 0.25] },
-  dormant: { breathSpeed: 0.08, noiseScale: 0.5, displacement: 0.03, baseColor: [0.08, 0.08, 0.08], glowColor: [0.05, 0.08, 0.07] },
+  content: { breathSpeed: 0.5, noiseScale: 0.8, displacement: 0.15, baseColor: [0.12, 0.35, 0.22], glowColor: [0.15, 0.5, 0.4] },
+  alert: { breathSpeed: 0.8, noiseScale: 1.0, displacement: 0.18, baseColor: [0.18, 0.42, 0.28], glowColor: [0.2, 0.55, 0.45] },
+  excited: { breathSpeed: 1.2, noiseScale: 1.2, displacement: 0.22, baseColor: [0.22, 0.48, 0.32], glowColor: [0.25, 0.6, 0.5] },
+  recoiling: { breathSpeed: 0.4, noiseScale: 1.4, displacement: 0.25, baseColor: [0.35, 0.12, 0.08], glowColor: [0.5, 0.15, 0.08] },
+  resting: { breathSpeed: 0.25, noiseScale: 0.6, displacement: 0.10, baseColor: [0.08, 0.22, 0.15], glowColor: [0.1, 0.3, 0.25] },
+  dormant: { breathSpeed: 0.08, noiseScale: 0.4, displacement: 0.05, baseColor: [0.08, 0.08, 0.08], glowColor: [0.05, 0.08, 0.07] },
 };
 
 interface Props {
@@ -56,13 +56,13 @@ export function CreatureBody({ mood, size, bioluminescence }: Props) {
 
   return (
     <mesh ref={meshRef} scale={size} renderOrder={1}>
-      <icosahedronGeometry args={[1, 6]} />
+      <sphereGeometry args={[1, 64, 64]} />
       <shaderMaterial
         vertexShader={bodyVert}
         fragmentShader={bodyFrag}
         uniforms={uniforms}
         transparent
-        side={THREE.DoubleSide}
+        side={THREE.FrontSide}
         depthWrite={false}
       />
     </mesh>
