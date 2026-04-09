@@ -4,11 +4,12 @@
 
 A CLI tool that transforms raw git repository data into actionable intelligence — and a living codebase that maintains and evolves itself through AI agents.
 
-This is a **monorepo** with two packages:
+This is a **monorepo** with three packages:
 
 | Package | Description |
 |---------|-------------|
-| [`packages/giti/`](./packages/giti/) | The CLI organism — 14 commands, 767 tests |
+| [`packages/giti/`](./packages/giti/) | The CLI organism — 15 commands, 747+ tests |
+| [`packages/giti-observatory/`](./packages/giti-observatory/) | Living terrarium visualization — watch the organism evolve in real-time |
 | [`packages/livingcode-core/`](./packages/livingcode-core/) | The Living Codebase framework — organism schema, validator, types |
 
 ## Installation
@@ -263,6 +264,24 @@ Next: Proposals will be reviewed by Immune System, then scheduled by Prefrontal 
 
 Proposals require `ANTHROPIC_API_KEY` for generation. Without it, the command still detects signals but skips proposal generation.
 
+### Observatory
+
+#### `giti observatory`
+
+Start the living terrarium visualization — a 3D interactive scene where you can watch the organism evolve in real-time.
+
+```bash
+cd packages/giti-observatory && npm run dev   # Start on localhost:3333
+giti observatory push                         # Push snapshot for public deploy
+giti observatory status                       # Show observatory config
+```
+
+The terrarium features:
+- **A living creature** — translucent bioluminescent organism with visible internal organs (one per agent), cursor tracking, mood states driven by real data
+- **An ecosystem** — flora grows from merged changes, spores drift for growth proposals, weather reflects trajectory, energy pool shows token budget
+- **A growth journal** — expandable cycle cards showing agent activity (what each agent did and why), filter by outcome type
+- **Real-time updates** — SSE connection to `.organism/` watches for live cycle activity
+
 ### Global Options
 
 All commands support:
@@ -274,6 +293,12 @@ All commands support:
 ```bash
 # Required for giti build / giti cycle / giti organism start
 ANTHROPIC_API_KEY=sk-...
+
+# Required for Managed Agents (motor cortex cloud execution)
+GITHUB_TOKEN=github_pat_...    # Fine-grained PAT with Contents: Read+Write on the repo
+
+# Optional: model selection
+GITI_MODEL=claude-sonnet-4-6   # Default model for motor cortex (claude-sonnet-4-6, claude-opus-4-6, etc.)
 
 # Optional: OpenClaw observability
 OPENCLAW_API_KEY=...

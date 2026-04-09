@@ -1,21 +1,24 @@
 # giti — Git Intelligence CLI
 
 ## What This Is
-A CLI tool that transforms raw git repository data into actionable intelligence, and a living codebase that maintains and evolves itself through AI agents. Built across 4 sprints: analysis CLI, safety layer, autonomous lifecycle, and release infrastructure. This is an npm workspaces monorepo with two packages: `packages/giti/` (the CLI organism) and `packages/livingcode-core/` (the extracted framework).
+A CLI tool that transforms raw git repository data into actionable intelligence, and a living codebase that maintains and evolves itself through AI agents. Built across 5 sprints: analysis CLI, safety layer, autonomous lifecycle, release infrastructure, and observatory visualization. This is an npm workspaces monorepo with three packages: `packages/giti/` (the CLI organism), `packages/livingcode-core/` (the extracted framework), and `packages/giti-observatory/` (the living terrarium visualization).
 
 ## Tech Stack
 - TypeScript (strict mode, ESM), Node.js >= 18
 - tsup (build), vitest (test), commander (CLI), simple-git (git ops)
-- chalk (colors), ora (spinners), @anthropic-ai/sdk (Motor Cortex code generation)
+- chalk (colors), ora (spinners), @anthropic-ai/sdk (Claude Managed Agents for Motor Cortex)
 - npm workspaces (monorepo), @octokit/rest (GitHub integration)
+- Next.js 15, react-three-fiber, Tailwind CSS 4 (Observatory visualization)
+- @react-three/drei, @react-three/postprocessing, @react-spring/three, Framer Motion
 
 ## Dev Commands
 All commands run from the repo root via npm workspaces:
 - `npm run build` — build all packages with tsup
-- `npm test` — run all tests (712 total: 697 giti + 15 framework)
+- `npm test` — run all tests (747+ giti + 18 observatory + 15 framework)
 - `npm run lint` — type-check all packages with tsc --noEmit
+- `cd packages/giti-observatory && npm run dev` — start observatory on port 3333
 
-## CLI Commands (14 total)
+## CLI Commands (15 total)
 - `giti pulse` — repo health snapshot
 - `giti hotspots` — volatile file detection with coupling
 - `giti ghosts` — abandoned work detection
@@ -30,6 +33,7 @@ All commands run from the repo root via npm workspaces:
 - `giti simulate` — generate synthetic telemetry from diverse repo types
 - `giti grow` — Growth Hormone agent (analyze telemetry, propose features)
 - `giti dispatch` — view evolution dispatches (content pipeline narratives)
+- `giti observatory` — start living terrarium visualization (serve, push, status)
 
 ## Architecture
 
@@ -47,7 +51,7 @@ All commands run from the repo root via npm workspaces:
 
 ### Sprint 2: Autonomous Lifecycle
 - `src/agents/prefrontal-cortex/` — strategic planner: tiered prioritization (5 tiers), backlog management, cooldown awareness
-- `src/agents/motor-cortex/` — builder: Claude API integration, structured prompt→response, self-correction loop (max 2 attempts), branch management
+- `src/agents/motor-cortex/` — builder: Claude Managed Agents (cloud-hosted sandboxed execution), patch capture and local apply, configurable model via GITI_MODEL env var
 - `src/agents/orchestrator/` — lifecycle: full cycle (sense→plan→build→review→commit→reflect), safety systems (kill switch, cooldown, lock, failures, API budget), scheduler, heartbeat monitor (inter-cycle health checks)
 
 ### Sprint 3: Enable Growth
@@ -63,6 +67,17 @@ All commands run from the repo root via npm workspaces:
 - `src/content/` — Content pipeline: dispatch generator, narrative engine, milestone detection, platform formatter (twitter/linkedin/hn/blog)
 - `packages/livingcode-core/` — Extracted framework: organism.json schema, validator, and shared types (OrganismConfig, OrganismManifest)
 - Monorepo migration: npm workspaces with `packages/giti/` and `packages/livingcode-core/`
+
+### Sprint 5: Observatory — Living Terrarium Visualization
+- `packages/giti-observatory/` — Next.js 15 app with react-three-fiber 3D terrarium
+- `src/types/` — ObservatorySnapshot, SceneState, CycleDigest types
+- `src/data/` — snapshot builder (reads .organism/ → ObservatorySnapshot), local/remote data providers, React context
+- `src/components/vitals/` — VitalsStrip with state indicator, spark charts, phase indicator
+- `src/components/journal/` — GrowthJournal with expandable CycleCards showing agent activity events, LiveCycleCard, milestone badges, filter chips
+- `src/components/terrarium/` — R3F 3D scene: translucent bioluminescent creature with visible organs, cursor tracking, mood states (content/alert/excited/recoiling/resting/dormant), instanced flora, particle spores, weather effects, energy pool, fossil milestones, day/night lighting cycle, bloom post-processing, stars
+- `src/app/api/` — REST snapshot endpoint + SSE event stream for live updates
+- `src/app/` — Main page (3 layers: vitals + terrarium + journal), history page, moment permalink page, intro overlay
+- `src/lib/` — scene mapper (snapshot → SceneState), human-friendly label formatting
 
 ### Shared Infrastructure
 - `src/agents/types.ts` — AgentRole, OrganismEvent, EventType, OrganismConfig
@@ -104,9 +119,12 @@ All commands run from the repo root via npm workspaces:
 - Performance budgets: pulse <2s, hotspots <5s, ghosts <10s
 
 ## Safety Rails
-- Motor Cortex cannot modify `organism.json` or `.organism/`
+- Motor Cortex runs in cloud sandbox (Claude Managed Agents) — cannot affect local filesystem directly
+- Motor Cortex can ONLY modify files under `packages/giti/src/` and `packages/giti/tests/`
+- Motor Cortex cannot modify organism.json, .organism/, .claude/, docs/, package.json, package-lock.json
 - Motor Cortex cannot delete test files
-- Max 2 Claude API calls per work item
+- Changes captured as git patches and applied locally — organism controls its own git workflow
+- Max $0.50 budget per work item, max 15 agent turns
 - 48h cooldown after any regression
 - 3 consecutive failures → organism pauses
 - Kill switch halts all activity immediately
@@ -114,6 +132,8 @@ All commands run from the repo root via npm workspaces:
 
 ## Environment Variables
 - `ANTHROPIC_API_KEY` — required for build/cycle/organism commands
+- `GITHUB_TOKEN` or `GH_TOKEN` — required for Managed Agents (fine-grained PAT with Contents: Read+Write on the repo)
+- `GITI_MODEL` — model for motor cortex (default: claude-sonnet-4-6)
 - `OPENCLAW_API_KEY` — optional observability
 - `GITI_API_BUDGET` — monthly token limit (default: 100000)
 - `GITI_SUPERVISED` — require human approval for merges
