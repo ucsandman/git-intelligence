@@ -12,8 +12,9 @@ export async function runTestCheck(
 ): Promise<CheckResult> {
   const name = 'Tests';
 
-  // 1. Run vitest and parse JSON output
-  const testResult = runCommand('npx', ['vitest', 'run', '--reporter=json'], repoPath);
+  // 1. Run vitest for the giti package only and parse JSON output
+  const gitiPath = path.join(repoPath, 'packages', 'giti');
+  const testResult = runCommand('npx', ['vitest', 'run', '--reporter=json'], gitiPath);
 
   let totalTests = 0;
   let failedTests = 0;
@@ -44,11 +45,11 @@ export async function runTestCheck(
   }
 
   // 3. Run vitest with coverage and read coverage summary
-  runCommand('npx', ['vitest', 'run', '--coverage', '--reporter=json'], repoPath);
+  runCommand('npx', ['vitest', 'run', '--coverage', '--reporter=json'], gitiPath);
 
   let coveragePercent = 0;
   try {
-    const coveragePath = path.join(repoPath, 'coverage', 'coverage-summary.json');
+    const coveragePath = path.join(gitiPath, 'coverage', 'coverage-summary.json');
     const coverageRaw = await fs.readFile(coveragePath, 'utf-8');
     const coverageData = JSON.parse(coverageRaw) as {
       total?: { statements?: { pct?: number } };
