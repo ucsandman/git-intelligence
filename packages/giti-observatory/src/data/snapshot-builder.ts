@@ -230,41 +230,39 @@ export async function buildSnapshot(
     .filter((d) => d.milestone)
     .map((d) => d.milestone as string);
 
-  // Build cycle history from events
-  const cycleNumbers = [...new Set(allEvents.map((e) => e.cycle))].sort(
-    (a, b) => a - b,
-  );
-  const history: CycleDigest[] = cycleNumbers.map((cycle) => {
-    const cycleEvents = allEvents.filter((e) => e.cycle === cycle);
-    const merged = cycleEvents.filter(
-      (e) => e.type === 'change-merged',
-    ).length;
-    const rejected = cycleEvents.filter(
-      (e) => e.type === 'change-rejected',
-    ).length;
-    const growth = cycleEvents.filter(
-      (e) => e.type === 'growth-proposed',
-    ).length;
-    const hasRegression = cycleEvents.some(
-      (e) => e.type === 'regression-detected',
-    );
-    const dispatch = dispatches.find((d) => d.cycle === cycle);
+  // Build cycle history from state reports (one per sense run = one per cycle)
+  // State reports are more reliable than events since events may all have cycle=0
+  const history: CycleDigest[] = stateReports.map((report, index) => {
+    // Try to find matching events by looking for cycle-complete events
+    const cycleCompleteEvents = allEvents.filter((e) => e.type === 'cycle-complete');
+    const matchingComplete = cycleCompleteEvents[index];
+    const outcomeText = matchingComplete?.summary ?? '';
 
     let outcome: CycleDigest['outcome'] = 'stable';
-    if (hasRegression) outcome = 'regression';
-    else if (merged > 0) outcome = 'productive';
-    else if (rejected > 0) outcome = 'no-changes';
+    if (outcomeText.includes('regression')) outcome = 'regression';
+    else if (outcomeText.includes('productive')) outcome = 'productive';
+    else if (outcomeText.includes('no-changes')) outcome = 'no-changes';
+    else if (outcomeText.includes('aborted')) outcome = 'aborted';
+
+    // Count events near this cycle's timestamp
+    const reportTime = new Date(report.timestamp).getTime();
+    const nearbyEvents = allEvents.filter((e) => {
+      const t = new Date(e.timestamp).getTime();
+      return Math.abs(t - reportTime) < 3600000; // within 1 hour
+    });
+    const merged = nearbyEvents.filter((e) => e.type === 'change-merged').length;
+    const rejected = nearbyEvents.filter((e) => e.type === 'change-rejected').length;
+    const growth = nearbyEvents.filter((e) => e.type === 'growth-proposed').length;
 
     return {
-      cycle,
-      timestamp: cycleEvents[0]?.timestamp ?? '',
+      cycle: index + 1,
+      timestamp: report.timestamp,
       outcome,
       changes_merged: merged,
       changes_rejected: rejected,
       growth_proposals: growth,
       api_tokens_used: 0,
       duration_ms: 0,
-      milestone: dispatch?.milestone,
     };
   });
 
