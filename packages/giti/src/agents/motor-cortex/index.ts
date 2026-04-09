@@ -75,6 +75,9 @@ export async function runMotorCortex(
         const applyFallback = runCommand('git', ['apply', '--3way', patchFile], repoPath);
         if (applyFallback.status !== 0) {
           console.log(`[motor-cortex] Patch apply failed: ${applyFallback.stderr}`);
+          // Force-clean the working directory before switching back
+          runCommand('git', ['checkout', '--', '.'], repoPath);
+          runCommand('git', ['clean', '-fd'], repoPath);
           await switchToMain(repoPath);
           await fs.unlink(patchFile).catch(() => {});
           return {
@@ -147,6 +150,10 @@ export async function runMotorCortex(
       error: agentResult.error ?? 'No patch captured from agent',
     };
   } catch (error: unknown) {
+    // Force-clean before returning to main on any error
+    runCommand('git', ['checkout', '--', '.'], repoPath);
+    runCommand('git', ['clean', '-fd'], repoPath);
+    await switchToMain(repoPath).catch(() => {});
     return {
       work_item_id: workItem.id,
       branch_name: branchName,
