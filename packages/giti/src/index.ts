@@ -1,3 +1,9 @@
+import { config } from 'dotenv';
+import { resolve } from 'node:path';
+
+// Load .env from repo root (where giti is run)
+config({ path: resolve(process.cwd(), '.env') });
+
 import { Command } from 'commander';
 import { executePulse } from './commands/pulse.js';
 import { executeHotspots } from './commands/hotspots.js';
