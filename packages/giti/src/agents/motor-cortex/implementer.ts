@@ -1,37 +1,26 @@
-import Anthropic from '@anthropic-ai/sdk';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import type { ImplementationContext, FileChange } from './types.js';
+import { query } from '@anthropic-ai/claude-agent-sdk';
+import type { ImplementationContext } from './types.js';
 import { runCommand } from '../utils.js';
 
-const FORBIDDEN_PATHS = ['organism.json', '.organism'];
-const MAX_API_CALLS = 2;
-
-function validateChange(change: FileChange): void {
-  for (const forbidden of FORBIDDEN_PATHS) {
-    if (
-      change.path === forbidden ||
-      change.path.startsWith(forbidden + '/') ||
-      change.path.startsWith(forbidden + '\\')
-    ) {
-      throw new Error(`Cannot modify forbidden path: ${change.path}`);
-    }
-  }
-  if (change.action === 'delete' && (change.path.includes('.test.') || change.path.includes('.spec.'))) {
-    throw new Error(`Cannot delete test file: ${change.path}`);
-  }
+export interface AgentImplementationResult {
+  success: boolean;
+  filesChanged: string[];
+  tokensUsed: number;
+  costUsd: number;
+  turns: number;
+  durationMs: number;
+  summary: string;
+  error?: string;
 }
 
-export function buildPrompt(context: ImplementationContext): string {
-  const fileContents = Object.entries(context.current_file_contents)
-    .map(([filePath, content]) => `### ${filePath}\n\`\`\`\n${content}\n\`\`\``)
-    .join('\n\n');
-
+function buildAgentPrompt(context: ImplementationContext): string {
   const successCriteria = context.success_criteria.map((c) => `- ${c}`).join('\n');
   const principles = context.evolutionary_principles.map((p) => `- ${p}`).join('\n');
-  const lessons = context.memory_lessons.map((l) => `- ${l}`).join('\n');
+  const lessons = context.memory_lessons.length > 0
+    ? context.memory_lessons.map((l) => `- ${l}`).join('\n')
+    : '(none yet)';
 
-  return `You are implementing a code change for the following work item.
+  return `You are the Motor Cortex of a living codebase organism. Your job is to implement a single focused code change.
 
 ## Work Item: ${context.title}
 
@@ -51,172 +40,101 @@ ${principles}
 ## Lessons from Memory
 ${lessons}
 
-## Current File Contents
-${fileContents}
+${context.target_files.length > 0 ? `## Target Files (start here)\n${context.target_files.join('\n')}` : '## No specific target files — explore the codebase to find the right files to change.'}
 
-## Target Files
-${context.target_files.join(', ')}
+## Instructions
 
-Respond with ONLY a JSON code block containing the file changes:
-\`\`\`json
-[
-  { "path": "src/file.ts", "action": "modify", "content": "...full new content..." },
-  { "path": "tests/file.test.ts", "action": "modify", "content": "...full new content..." }
-]
-\`\`\``;
+1. Read the relevant source files to understand the current code
+2. Make the minimal changes needed to satisfy the success criteria
+3. Write or update tests if the change affects behavior
+4. Run \`npx vitest run\` to verify tests pass
+5. If tests fail, read the error output and fix the issues
+
+## STRICT Safety Rules — NEVER violate these
+- ONLY modify files under packages/giti/src/ and packages/giti/tests/
+- NEVER modify organism.json, .organism/, .claude/, docs/, .gitignore, package.json, package-lock.json
+- NEVER modify anything under .next/, node_modules/, dist/
+- NEVER modify files in packages/giti-observatory/ or packages/livingcode-core/
+- NEVER delete test files (.test. or .spec.)
+- Keep changes minimal and focused on the work item
+- If you cannot complete the task within scope, stop and explain why`;
 }
 
-export function parseResponse(text: string): FileChange[] {
-  let json: string | undefined;
-
-  // Try extracting from code block first
-  const codeBlockMatch = /```(?:json)?\s*\n([\s\S]*?)\n```/.exec(text);
-  if (codeBlockMatch?.[1]) {
-    json = codeBlockMatch[1];
-  } else {
-    // Try plain JSON
-    const trimmed = text.trim();
-    if (trimmed.startsWith('[')) {
-      json = trimmed;
-    }
-  }
-
-  if (!json) {
-    return [];
-  }
-
-  let changes: FileChange[];
-  try {
-    changes = JSON.parse(json) as FileChange[];
-  } catch {
-    return [];
-  }
-
-  if (!Array.isArray(changes)) {
-    return [];
-  }
-
-  for (const change of changes) {
-    validateChange(change);
-  }
-
-  return changes;
-}
-
-export async function applyChanges(repoPath: string, changes: FileChange[]): Promise<void> {
-  for (const change of changes) {
-    validateChange(change);
-    const fullPath = path.join(repoPath, change.path);
-
-    if (change.action === 'modify' || change.action === 'create') {
-      await fs.mkdir(path.dirname(fullPath), { recursive: true });
-      await fs.writeFile(fullPath, change.content ?? '', 'utf-8');
-    } else if (change.action === 'delete') {
-      await fs.unlink(fullPath);
-    }
-  }
-}
-
-export async function revertChanges(
-  repoPath: string,
-  changes: FileChange[],
-  originals: Record<string, string>,
-): Promise<void> {
-  for (const change of changes) {
-    const fullPath = path.join(repoPath, change.path);
-
-    if (change.action === 'create') {
-      try {
-        await fs.unlink(fullPath);
-      } catch {
-        // File may not exist if apply partially failed
-      }
-    } else if (change.action === 'modify') {
-      const original = originals[change.path];
-      if (original !== undefined) {
-        await fs.mkdir(path.dirname(fullPath), { recursive: true });
-        await fs.writeFile(fullPath, original, 'utf-8');
-      }
-    } else if (change.action === 'delete') {
-      const original = originals[change.path];
-      if (original !== undefined) {
-        await fs.mkdir(path.dirname(fullPath), { recursive: true });
-        await fs.writeFile(fullPath, original, 'utf-8');
-      }
-    }
-  }
-}
-
-export async function implementWorkItem(
+export async function implementWithAgent(
   context: ImplementationContext,
   repoPath: string,
-): Promise<{ changes: FileChange[]; tokensUsed: number }> {
-  const client = new Anthropic();
+): Promise<AgentImplementationResult> {
+  const prompt = buildAgentPrompt(context);
+
+  console.log(`[motor-cortex] Launching agent for: ${context.title}`);
+  console.log(`[motor-cortex] Working directory: ${repoPath}`);
+
+  let summary = '';
   let tokensUsed = 0;
-  let lastError = '';
+  let costUsd = 0;
+  let turns = 0;
+  let durationMs = 0;
+  let success = false;
+  let error: string | undefined;
 
-  for (let attempt = 0; attempt < MAX_API_CALLS; attempt++) {
-    const prompt =
-      attempt === 0
-        ? buildPrompt(context)
-        : `${buildPrompt(context)}\n\n## Previous Attempt Failed\nThe previous attempt produced errors:\n${lastError}\n\nPlease fix these issues and try again.`;
+  try {
+    for await (const message of query({
+      prompt,
+      options: {
+        cwd: repoPath,
+        model: 'claude-opus-4-6',
+        allowedTools: ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep'],
+        permissionMode: 'acceptEdits',
+        maxTurns: 20,
+        maxBudgetUsd: 1.00,
+      },
+    })) {
+      if (message.type === 'result') {
+        const result = message as Record<string, unknown>;
+        summary = (result['result'] as string) ?? '';
+        tokensUsed = ((result['usage'] as Record<string, number>)?.['inputTokens'] ?? 0)
+          + ((result['usage'] as Record<string, number>)?.['outputTokens'] ?? 0);
+        costUsd = (result['total_cost_usd'] as number) ?? 0;
+        turns = (result['num_turns'] as number) ?? 0;
+        durationMs = (result['duration_ms'] as number) ?? 0;
+        success = (result['subtype'] as string) === 'success';
 
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const usage = response.usage;
-    tokensUsed += usage.input_tokens + usage.output_tokens;
-
-    const textBlock = response.content.find((block) => block.type === 'text');
-    if (!textBlock || textBlock.type !== 'text') {
-      lastError = 'No text content in API response';
-      continue;
-    }
-
-    const changes = parseResponse(textBlock.text);
-    if (changes.length === 0) {
-      lastError = 'Could not parse any file changes from response';
-      continue;
-    }
-
-    // Save originals for potential revert
-    const originals: Record<string, string> = {};
-    for (const change of changes) {
-      if (change.action === 'modify' || change.action === 'delete') {
-        try {
-          originals[change.path] = await fs.readFile(
-            path.join(repoPath, change.path),
-            'utf-8',
-          );
-        } catch {
-          // File may not exist
+        if (!success) {
+          error = `Agent ended with: ${result['subtype'] as string}`;
         }
+
+        console.log(`[motor-cortex] Agent finished: ${result['subtype'] as string}, ${turns} turns, $${costUsd.toFixed(4)}, ${tokensUsed} tokens`);
       }
     }
-
-    await applyChanges(repoPath, changes);
-
-    // Verify with tsc
-    const tscResult = runCommand('npx', ['tsc', '--noEmit'], repoPath);
-    if (tscResult.status !== 0) {
-      lastError = `TypeScript compilation failed:\n${tscResult.stderr || tscResult.stdout}`;
-      await revertChanges(repoPath, changes, originals);
-      continue;
-    }
-
-    // Verify with vitest
-    const testResult = runCommand('npx', ['vitest', 'run'], repoPath);
-    if (testResult.status !== 0) {
-      lastError = `Tests failed:\n${testResult.stderr || testResult.stdout}`;
-      await revertChanges(repoPath, changes, originals);
-      continue;
-    }
-
-    return { changes, tokensUsed };
+  } catch (err: unknown) {
+    error = err instanceof Error ? err.message : String(err);
+    console.log(`[motor-cortex] Agent error: ${error}`);
   }
 
-  throw new Error(`Implementation failed after ${MAX_API_CALLS} attempts`);
+  // Detect changed files via git (only tracked source files, not .next/ or other noise)
+  const gitResult = runCommand('git', ['diff', '--name-only', 'HEAD'], repoPath);
+  const untrackedResult = runCommand('git', ['ls-files', '--others', '--exclude-standard'], repoPath);
+
+  const allFiles = [
+    ...gitResult.stdout.split('\n'),
+    ...untrackedResult.stdout.split('\n'),
+  ]
+    .map((f) => f.trim())
+    .filter((f) => f.length > 0)
+    // Only count source files under packages/giti/
+    .filter((f) => f.startsWith('packages/giti/src/') || f.startsWith('packages/giti/tests/'));
+
+  const filesChanged = [...new Set(allFiles)];
+  console.log(`[motor-cortex] Files changed: ${filesChanged.length} (${filesChanged.join(', ')})`);
+
+  return {
+    success: success && filesChanged.length > 0,
+    filesChanged,
+    tokensUsed,
+    costUsd,
+    turns,
+    durationMs,
+    summary,
+    error: filesChanged.length === 0 && !error ? 'Agent completed but made no valid source file changes' : error,
+  };
 }

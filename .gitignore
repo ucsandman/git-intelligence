@@ -6,3 +6,6 @@ coverage/
 .DS_Store
 Thumbs.db
 .organism/
+.next/
+.turbo/
+.vercel/
