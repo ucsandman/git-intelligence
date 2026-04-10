@@ -88,8 +88,48 @@ async function walkAll(
 }
 
 /**
+ * Type guard: true if `value` has the nested shape that `detectTrends` reads.
+ *
+ * giti's `.organism/state-reports/` directory can contain reports written by a
+ * different organism (e.g. DashClaw's Python sensory cortex writes a different
+ * schema to the same path). Loading those into `detectTrends` crashes with
+ * "Cannot read properties of undefined (reading 'test_coverage_percent')"
+ * because the extractors assume giti's StateReport shape.
+ *
+ * This guard validates only the paths that trend detection actually touches —
+ * `quality.test_coverage_percent`, `quality.lint_error_count`,
+ * `performance.{pulse,hotspots,ghosts}_execution_ms`, and `codebase.total_lines`
+ * — so foreign reports are skipped silently and giti sense works cleanly in
+ * repos governed by other organisms.
+ */
+export function isValidStateReport(value: unknown): value is StateReport {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const r = value as Record<string, unknown>;
+
+  if (typeof r.timestamp !== 'string') return false;
+
+  const requiredNumbers: Array<[keyof StateReport, string]> = [
+    ['quality', 'test_coverage_percent'],
+    ['quality', 'lint_error_count'],
+    ['performance', 'pulse_execution_ms'],
+    ['performance', 'hotspots_execution_ms'],
+    ['performance', 'ghosts_execution_ms'],
+    ['codebase', 'total_lines'],
+  ];
+
+  for (const [parentKey, fieldKey] of requiredNumbers) {
+    const parent = r[parentKey];
+    if (!parent || typeof parent !== 'object') return false;
+    if (typeof (parent as Record<string, unknown>)[fieldKey] !== 'number') return false;
+  }
+
+  return true;
+}
+
+/**
  * Load all historical state reports from the .organism/state-reports/ directory.
- * Returns them sorted by timestamp ascending.
+ * Returns them sorted by timestamp ascending. Foreign-schema reports (from
+ * other organisms sharing the same directory) are silently skipped.
  */
 async function loadHistoricalReports(repoPath: string): Promise<StateReport[]> {
   const reportsDir = getOrganismPath(repoPath, REPORTS_SUBDIR);
@@ -104,8 +144,8 @@ async function loadHistoricalReports(repoPath: string): Promise<StateReport[]> {
   const reports: StateReport[] = [];
   for (const entry of entries) {
     if (!entry.endsWith('.json')) continue;
-    const report = await readJsonFile<StateReport>(path.join(reportsDir, entry));
-    if (report?.timestamp) {
+    const report = await readJsonFile<unknown>(path.join(reportsDir, entry));
+    if (isValidStateReport(report)) {
       reports.push(report);
     }
   }
