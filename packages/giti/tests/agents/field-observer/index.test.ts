@@ -113,4 +113,17 @@ describe('observe', () => {
     const [obs] = await observe(gitiHome, 99);
     expect(obs!.mood).toBe('curious');
   });
+
+  it('still writes a fallback observation when the narrator API fails', async () => {
+    mockCreate.mockRejectedValueOnce(new Error('network down'));
+    const observations = await observe(gitiHome, 99);
+
+    expect(observations).toHaveLength(1);
+    expect(observations[0]!.narrative).toContain('Observed sample');
+
+    const latestPath = path.join(gitiHome, '.organism', 'field-reports', 'sample', 'latest.json');
+    const latestRaw = await fs.readFile(latestPath, 'utf-8');
+    const latest = JSON.parse(latestRaw);
+    expect(latest.narrative).toContain('Observed sample');
+  });
 });

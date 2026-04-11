@@ -19,10 +19,18 @@ export async function loadFieldTargets(repoPath: string): Promise<FieldTarget[]>
     const configPath = path.join(repoPath, 'organism.json');
     try {
       await fs.access(configPath);
-      // File exists but failed to load → malformed. Log and continue.
-      console.error(
-        `[field-observer] failed to load ${configPath}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      // File exists but failed to load → malformed. Re-read locally so we
+      // can surface the real parse error rather than the generic "not found"
+      // message that loadOrganismConfig produces via readJsonFile.
+      let realError: string;
+      try {
+        const raw = await fs.readFile(configPath, 'utf-8');
+        JSON.parse(raw);
+        realError = error instanceof Error ? error.message : String(error);
+      } catch (parseError) {
+        realError = parseError instanceof Error ? parseError.message : String(parseError);
+      }
+      console.error(`[field-observer] failed to load ${configPath}: ${realError}`);
     } catch {
       // File genuinely doesn't exist. Silent return is correct.
     }
