@@ -39,14 +39,27 @@ export function getOrganismPath(repoPath: string, ...parts: string[]): string {
   return path.join(repoPath, ORGANISM_DIR, ...parts);
 }
 
+function resolveCommand(command: string): string {
+  if (process.platform !== 'win32') {
+    return command;
+  }
+
+  const lower = command.toLowerCase();
+  if (lower === 'npm' || lower === 'npx') {
+    return `${command}.cmd`;
+  }
+
+  return command;
+}
+
 export function runCommand(command: string, args: string[], cwd: string): { stdout: string; stderr: string; status: number } {
   try {
-    const stdout = execFileSync(command, args, {
+    const stdout = execFileSync(resolveCommand(command), args, {
       cwd,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 120_000,
-      shell: process.platform === 'win32',
+      shell: false,
     });
     return { stdout, stderr: '', status: 0 };
   } catch (error: unknown) {

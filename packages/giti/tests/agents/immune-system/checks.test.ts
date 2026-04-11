@@ -91,11 +91,21 @@ const mockBaselines: Baselines = {
   total_lines: 5000,
 };
 
-function vitestJson(total: number, failed: number): string {
+function vitestJson(total: number, failedNames: string[] = []): string {
   return JSON.stringify({
     numTotalTests: total,
-    numFailedTests: failed,
-    numPassedTests: total - failed,
+    numFailedTests: failedNames.length,
+    numPassedTests: total - failedNames.length,
+    testResults: failedNames.length
+      ? [
+          {
+            assertionResults: failedNames.map((fullName) => ({
+              status: 'failed',
+              fullName,
+            })),
+          },
+        ]
+      : [],
   });
 }
 
@@ -107,13 +117,24 @@ describe('runTestCheck', () => {
   });
 
   it('returns pass when all tests pass and coverage is good', async () => {
-    // First call: vitest run (tests)
+    // First call: current branch test run
     mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50, 0),
+      stdout: vitestJson(50),
       stderr: '',
       status: 0,
     });
-    // Second call: vitest run --coverage
+    // Git baseline comparison calls
+    mockRunCommand.mockReturnValueOnce({ stdout: 'feature/test\n', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({
+      stdout: vitestJson(50),
+      stderr: '',
+      status: 0,
+    });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    // Coverage run
     mockRunCommand.mockReturnValueOnce({
       stdout: '',
       stderr: '',
@@ -134,23 +155,48 @@ describe('runTestCheck', () => {
 
   it('returns fail when some tests fail', async () => {
     mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50, 3),
+      stdout: vitestJson(50, [
+        'suite A > test 1',
+        'suite A > test 2',
+        'suite B > test 3',
+      ]),
       stderr: '',
       status: 1,
     });
+    mockRunCommand.mockReturnValueOnce({ stdout: 'feature/test\n', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({
+      stdout: vitestJson(50),
+      stderr: '',
+      status: 0,
+    });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
 
     const result = await runTestCheck('/repo', null, mockConfig);
 
     expect(result.status).toBe('fail');
-    expect(result.message).toBe('3 tests failed out of 50');
+    expect(result.message).toContain('3 NEW test failures introduced');
+    expect(result.message).toContain('(3 total, 0 pre-existing)');
   });
 
   it('returns fail when coverage is below floor', async () => {
     mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50, 0),
+      stdout: vitestJson(50),
       stderr: '',
       status: 0,
     });
+    mockRunCommand.mockReturnValueOnce({ stdout: 'feature/test\n', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({
+      stdout: vitestJson(50),
+      stderr: '',
+      status: 0,
+    });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
     mockRunCommand.mockReturnValueOnce({
       stdout: '',
       stderr: '',
@@ -169,10 +215,20 @@ describe('runTestCheck', () => {
 
   it('returns warn when coverage decreased but is above floor', async () => {
     mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50, 0),
+      stdout: vitestJson(50),
       stderr: '',
       status: 0,
     });
+    mockRunCommand.mockReturnValueOnce({ stdout: 'feature/test\n', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({
+      stdout: vitestJson(50),
+      stderr: '',
+      status: 0,
+    });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
     mockRunCommand.mockReturnValueOnce({
       stdout: '',
       stderr: '',
