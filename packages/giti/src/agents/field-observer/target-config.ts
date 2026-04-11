@@ -17,6 +17,7 @@ export async function loadFieldTargets(repoPath: string): Promise<FieldTarget[]>
   }
 
   const raw = config.field_targets ?? [];
+  if (!Array.isArray(raw)) return [];
   const valid: FieldTarget[] = [];
 
   for (const target of raw) {
