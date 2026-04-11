@@ -9,6 +9,9 @@ vi.mock('../../../src/agents/immune-system/baselines.js');
 vi.mock('../../../src/agents/memory/index.js');
 vi.mock('../../../src/agents/motor-cortex/branch-manager.js');
 vi.mock('../../../src/agents/orchestrator/safety.js');
+vi.mock('../../../src/agents/field-observer/index.js', () => ({
+  observe: vi.fn().mockResolvedValue([]),
+}));
 vi.mock('../../../src/agents/growth-hormone/index.js', () => ({
   runGrowthHormone: vi.fn().mockResolvedValue({ signals: [], proposals: [] }),
 }));
@@ -36,6 +39,7 @@ const mockImmune = vi.mocked(await import('../../../src/agents/immune-system/ind
 const mockBaselines = vi.mocked(await import('../../../src/agents/immune-system/baselines.js'));
 const mockMemory = vi.mocked(await import('../../../src/agents/memory/index.js'));
 const mockBranch = vi.mocked(await import('../../../src/agents/motor-cortex/branch-manager.js'));
+const mockFieldObserver = vi.mocked(await import('../../../src/agents/field-observer/index.js'));
 
 // === Test Fixtures ===
 
@@ -172,6 +176,9 @@ beforeEach(() => {
   mockBranch.switchToMain.mockResolvedValue(undefined);
   mockBranch.mergeBranch.mockResolvedValue(undefined);
   mockBranch.deleteBranch.mockResolvedValue(undefined);
+
+  // Default field-observer mock: no targets configured
+  mockFieldObserver.observe.mockResolvedValue([]);
 
   // Default baselines mocks
   mockBaselines.createBaselinesFromReport.mockReturnValue({
@@ -440,5 +447,47 @@ describe('runLifecycleCycle', () => {
     expect(mockSafety.recordApiUsage).toHaveBeenCalledWith('/repo', 100);
     expect(mockSafety.recordApiUsage).toHaveBeenCalledWith('/repo', 250);
     expect(mockSafety.recordApiUsage).toHaveBeenCalledWith('/repo', 350);
+  });
+});
+
+describe('OBSERVE_EXTERNAL phase', () => {
+  it('calls field-observer.observe before runSensoryCortex', async () => {
+    const callOrder: string[] = [];
+    const report = makeStateReport();
+    const plan = makeCyclePlan([]);
+
+    mockFieldObserver.observe.mockImplementationOnce(async () => {
+      callOrder.push('observe');
+      return [];
+    });
+    mockSensory.runSensoryCortex.mockImplementationOnce(async () => {
+      callOrder.push('sense');
+      return { report, reportPath: '/tmp/report.json' };
+    });
+    mockPrefrontal.runPrefrontalCortex.mockResolvedValue(plan);
+
+    const result = await runLifecycleCycle({ repoPath: '/repo', supervised: false });
+
+    expect(callOrder[0]).toBe('observe');
+    expect(callOrder[1]).toBe('sense');
+    expect(mockFieldObserver.observe).toHaveBeenCalledWith('/repo', 1);
+    expect(result.outcome).toBe('stable');
+  });
+
+  it('does not fail the cycle when observe() throws', async () => {
+    const report = makeStateReport();
+    const plan = makeCyclePlan([]);
+
+    mockFieldObserver.observe.mockRejectedValueOnce(new Error('boom'));
+    mockSensory.runSensoryCortex.mockResolvedValue({ report, reportPath: '/tmp/report.json' });
+    mockPrefrontal.runPrefrontalCortex.mockResolvedValue(plan);
+
+    const result = await runLifecycleCycle({ repoPath: '/repo', supervised: false });
+
+    // Cycle should still complete — observe failure is non-fatal
+    expect(result.outcome).toBeDefined();
+    expect(['stable', 'no-changes']).toContain(result.outcome);
+    // Sensory cortex should still have been called despite observe() throwing
+    expect(mockSensory.runSensoryCortex).toHaveBeenCalled();
   });
 });
