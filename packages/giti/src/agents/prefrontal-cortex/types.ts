@@ -1,4 +1,5 @@
 import type { AgentRole } from '../types.js';
+import type { ActionRisk } from '../actions/types.js';
 
 export interface WorkItem {
   id: string;
@@ -24,4 +25,13 @@ export interface CyclePlan {
   rationale: string;
   estimated_risk: 'low' | 'medium' | 'high';
   memory_consulted: boolean;
+  action_recommendations?: ActionRecommendationSummary[];
+}
+
+export interface ActionRecommendationSummary {
+  template_id: string;
+  template_version: number;
+  score: number;
+  rationale: string[];
+  risk: ActionRisk;
 }
