@@ -25,6 +25,7 @@ export default defineConfig({
         'src/agents/orchestrator/scheduler.ts',
         'src/agents/types.ts',
         'src/agents/growth-hormone/types.ts',
+        'src/agents/field-observer/types.ts',
         'src/simulator/types.ts',
         'src/integrations/openclaw/types.ts',
         'src/integrations/dashclaw/types.ts',
