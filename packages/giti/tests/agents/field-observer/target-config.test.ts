@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -69,9 +69,12 @@ describe('loadFieldTargets', () => {
   });
 
   it('returns empty array when organism.json is malformed JSON', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await fs.writeFile(path.join(tmp, 'organism.json'), '{ this is not valid json ', 'utf-8');
     const targets = await loadFieldTargets(tmp);
     expect(targets).toEqual([]);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   it('returns empty array when field_targets is not an array', async () => {

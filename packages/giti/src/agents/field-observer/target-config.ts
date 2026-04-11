@@ -12,7 +12,20 @@ export async function loadFieldTargets(repoPath: string): Promise<FieldTarget[]>
   let config;
   try {
     config = await loadOrganismConfig(repoPath);
-  } catch {
+  } catch (error) {
+    // Distinguish "no organism.json" from "malformed organism.json":
+    // the former is a legitimate pre-init state; the latter should leave
+    // a breadcrumb so operators notice the silent empty.
+    const configPath = path.join(repoPath, 'organism.json');
+    try {
+      await fs.access(configPath);
+      // File exists but failed to load → malformed. Log and continue.
+      console.error(
+        `[field-observer] failed to load ${configPath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } catch {
+      // File genuinely doesn't exist. Silent return is correct.
+    }
     return [];
   }
 
