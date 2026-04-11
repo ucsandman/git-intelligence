@@ -15,6 +15,7 @@ interface ActionInstancePatch {
   started_at?: string;
   completed_at?: string;
   failure_reason?: string;
+  step_results?: ActionInstance['step_results'];
 }
 
 function getActionsRoot(repoPath: string): string {

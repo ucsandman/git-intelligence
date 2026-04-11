@@ -8,7 +8,16 @@ import { runRegressionCheck } from './checks/regression-check.js';
 import { runDependencyCheck } from './checks/dependency-check.js';
 import { runSecretScan } from './checks/secret-scan.js';
 import { generateVerdict } from './verdict.js';
-import type { ReviewVerdict, ReviewRisk, RegressionContext } from './types.js';
+import type {
+  ActionPolicyReason,
+  ActionPolicyVerdict,
+  ReviewVerdict,
+  ReviewRisk,
+  RegressionContext,
+} from './types.js';
+import type { ActionInstance, ActionTemplate } from '../actions/types.js';
+import * as safety from '../orchestrator/safety.js';
+import path from 'node:path';
 
 interface KnowledgeBase {
   patterns?: {
@@ -85,4 +94,50 @@ export async function runImmuneReview(
 
   // 8. Return verdict and path
   return { verdict, verdictPath };
+}
+
+function isWritePathAllowed(repoPath: string, relativePath: string): boolean {
+  const allowedRoot = path.resolve(repoPath, '.organism');
+  const target = path.resolve(repoPath, relativePath);
+  return target === allowedRoot || target.startsWith(`${allowedRoot}${path.sep}`);
+}
+
+export async function reviewActionPlan(
+  repoPath: string,
+  template: ActionTemplate,
+  _instance: ActionInstance,
+): Promise<ActionPolicyVerdict> {
+  const reasons: ActionPolicyReason[] = [];
+
+  if (template.risk === 'read_only') {
+    return { allowed: true, reasons };
+  }
+
+  if (await safety.isKillSwitchActive(repoPath)) {
+    reasons.push({
+      code: 'kill-switch',
+      message: 'Action execution is blocked while the organism kill switch is active.',
+    });
+  }
+
+  if (await safety.isInCooldown(repoPath)) {
+    reasons.push({
+      code: 'cooldown',
+      message: 'Action execution is blocked while the organism is in cooldown.',
+    });
+  }
+
+  for (const step of template.steps) {
+    if (step.type === 'write_artifact' && !isWritePathAllowed(repoPath, step.path)) {
+      reasons.push({
+        code: 'write-root',
+        message: `Action write path must stay under .organism/: ${step.path}`,
+      });
+    }
+  }
+
+  return {
+    allowed: reasons.length === 0,
+    reasons,
+  };
 }
