@@ -91,6 +91,33 @@ describe('deriveMood', () => {
     });
     expect(deriveMood(raw, prev)).toBe('alarmed');
   });
+
+  it('returns alarmed when stale branches spike by 3 or more', () => {
+    const prev: FieldObservation = { ...fakeRaw(), observedAt: '2026-04-10T09:00:00.000Z', cycle: 41, narrative: '', mood: 'attentive' };
+    const raw = fakeRaw({
+      ghosts: {
+        staleBranches: [
+          { name: 'stale-1', lastCommitDate: new Date(), author: 'A', aheadOfMain: 0, commitCount: 1 },
+          { name: 'stale-2', lastCommitDate: new Date(), author: 'A', aheadOfMain: 0, commitCount: 1 },
+          { name: 'stale-3', lastCommitDate: new Date(), author: 'A', aheadOfMain: 0, commitCount: 1 },
+        ],
+        deadCode: [],
+      },
+    });
+    expect(deriveMood(raw, prev)).toBe('alarmed');
+  });
+
+  it('returns dozing when both current and previous have zero commits', () => {
+    const prev: FieldObservation = {
+      ...fakeRaw({ pulse: { ...fakeRaw().pulse, weeklyCommits: { count: 0, authorCount: 0 } } }),
+      observedAt: '2026-04-10T09:00:00.000Z',
+      cycle: 41,
+      narrative: '',
+      mood: 'attentive',
+    };
+    const raw = fakeRaw({ pulse: { ...fakeRaw().pulse, weeklyCommits: { count: 0, authorCount: 0 } } });
+    expect(deriveMood(raw, prev)).toBe('dozing');
+  });
 });
 
 describe('narrate', () => {
@@ -140,6 +167,7 @@ describe('narrate', () => {
     expect(result.fallback).toBe(true);
     expect(result.narrative).toContain('sample');
     expect(result.narrative.length).toBeGreaterThan(0);
+    expect(result.error).toContain('network down');
   });
 
   it('returns deterministic fallback when narrator is disabled', async () => {
@@ -154,5 +182,32 @@ describe('narrate', () => {
 
     expect(result.fallback).toBe(true);
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('omits cache_control when cache_system_prompt is false', async () => {
+    mockCreate.mockResolvedValue({
+      content: [{ type: 'text', text: 'plain note' }],
+      usage: { input_tokens: 10, output_tokens: 5 },
+    });
+    const raw = fakeRaw();
+    const config = { enabled: true, model: 'claude-haiku-4-5-20251001', max_tokens: 600, cache_system_prompt: false };
+    await narrate(raw, null, config);
+
+    const callArg = mockCreate.mock.calls[0][0];
+    expect(callArg.system[0].cache_control).toBeUndefined();
+  });
+
+  it('preserves tokens_used when API returns empty text and captures error reason', async () => {
+    mockCreate.mockResolvedValue({
+      content: [{ type: 'text', text: '   ' }],
+      usage: { input_tokens: 50, output_tokens: 5 },
+    });
+    const raw = fakeRaw();
+    const config = { enabled: true, model: 'claude-haiku-4-5-20251001', max_tokens: 600, cache_system_prompt: true };
+    const result = await narrate(raw, null, config);
+
+    expect(result.fallback).toBe(true);
+    expect(result.tokens_used).toBe(55);
+    expect(result.error).toBe('empty response from model');
   });
 });
