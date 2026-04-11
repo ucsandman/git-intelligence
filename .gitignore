@@ -9,3 +9,4 @@ Thumbs.db
 .next/
 .turbo/
 .vercel/
+.worktrees/
