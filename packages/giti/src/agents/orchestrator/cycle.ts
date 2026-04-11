@@ -13,6 +13,7 @@ import { createBaselinesFromReport, writeBaselines } from '../immune-system/base
 import { recordMemoryEvent } from '../memory/index.js';
 import { mergeBranch, deleteBranch, switchToMain, pushBranch } from '../motor-cortex/branch-manager.js';
 import { runGrowthHormone } from '../growth-hormone/index.js';
+import { observe as runFieldObserver } from '../field-observer/index.js';
 import {
   buildActionInstance,
   getActionTemplate,
@@ -45,6 +46,26 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
   }
 
   try {
+    // Phase 0: OBSERVE_EXTERNAL
+    // Watches configured field targets and writes field reports to disk.
+    // Read-only against the target repo. Never fatal — individual target
+    // failures are captured inside observe().
+    if (await safety.isKillSwitchActive(repoPath)) return makeResult(cycle, startTime, 'aborted');
+    try {
+      const fieldObservations = await runFieldObserver(repoPath, cycle);
+      if (fieldObservations.length > 0) {
+        await recordMemoryEvent(
+          repoPath,
+          'cycle-started',
+          `Field observations: ${fieldObservations.map((o) => `${o.target}=${o.mood}`).join(', ')}`,
+          { cycle, field_observations: fieldObservations.map((o) => ({ target: o.target, mood: o.mood, partial: o.partial })) },
+        );
+      }
+    } catch (error) {
+      // Field observation failure is never fatal.
+      console.error(`[cycle] field-observer phase failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
     // Phase 1: SENSE
     if (await safety.isKillSwitchActive(repoPath)) return makeResult(cycle, startTime, 'aborted');
     const { report } = await runSensoryCortex(repoPath);

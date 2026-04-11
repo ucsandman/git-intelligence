@@ -62,5 +62,20 @@
     "mandatory_cooldown_after_regression": "48 hours",
     "branch_naming": "organism/{cortex}/{description}",
     "requires_immune_approval": true
+  },
+
+  "field_targets": [
+    {
+      "slug": "practical-systems",
+      "path": "C:\\Projects\\Practical Systems",
+      "enabled": true
+    }
+  ],
+
+  "narrator": {
+    "enabled": true,
+    "model": "claude-haiku-4-5-20251001",
+    "max_tokens": 600,
+    "cache_system_prompt": true
   }
 }

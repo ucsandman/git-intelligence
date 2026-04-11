@@ -43,6 +43,19 @@ export type EventType =
   | 'merge-declined-by-human'
   | 'cycle-complete';
 
+export interface FieldTarget {
+  slug: string;
+  path: string;
+  enabled: boolean;
+}
+
+export interface NarratorConfig {
+  enabled: boolean;
+  model: string;
+  max_tokens: number;
+  cache_system_prompt: boolean;
+}
+
 export interface OrganismConfig {
   quality_standards: {
     test_coverage_floor: number;
@@ -62,4 +75,6 @@ export interface OrganismConfig {
     branch_naming: string;
     requires_immune_approval: boolean;
   };
+  field_targets?: FieldTarget[];
+  narrator?: NarratorConfig;
 }
