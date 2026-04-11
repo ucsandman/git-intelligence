@@ -302,10 +302,11 @@ describe('runLifecycleCycle', () => {
     const items = [makeWorkItem('w1', 'Item 1'), makeWorkItem('w2', 'Item 2')];
     const plan = makeCyclePlan(items);
 
-    // Kill switch is off initially, off for sense phase, off for plan phase,
-    // off for grow phase, then ON for build phase
+    // Kill switch is off initially, off for observe phase, off for sense phase,
+    // off for plan phase, off for grow phase, then ON for build phase
     mockSafety.isKillSwitchActive
       .mockResolvedValueOnce(false)  // pre-flight
+      .mockResolvedValueOnce(false)  // before observe
       .mockResolvedValueOnce(false)  // before sense
       .mockResolvedValueOnce(false)  // before plan
       .mockResolvedValueOnce(false)  // before grow

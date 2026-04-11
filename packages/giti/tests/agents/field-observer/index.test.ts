@@ -116,6 +116,8 @@ describe('observe', () => {
 
   it('still writes a fallback observation when the narrator API fails', async () => {
     mockCreate.mockRejectedValueOnce(new Error('network down'));
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
     const observations = await observe(gitiHome, 99);
 
     expect(observations).toHaveLength(1);
@@ -125,5 +127,8 @@ describe('observe', () => {
     const latestRaw = await fs.readFile(latestPath, 'utf-8');
     const latest = JSON.parse(latestRaw);
     expect(latest.narrative).toContain('Observed sample');
+
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('narrator fallback for sample'));
+    errSpy.mockRestore();
   });
 });

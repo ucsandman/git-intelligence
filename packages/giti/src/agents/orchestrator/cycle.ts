@@ -50,6 +50,7 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
     // Watches configured field targets and writes field reports to disk.
     // Read-only against the target repo. Never fatal — individual target
     // failures are captured inside observe().
+    if (await safety.isKillSwitchActive(repoPath)) return makeResult(cycle, startTime, 'aborted');
     try {
       const fieldObservations = await runFieldObserver(repoPath, cycle);
       if (fieldObservations.length > 0) {
