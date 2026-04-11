@@ -8,9 +8,15 @@ This is a **monorepo** with three packages:
 
 | Package | Description |
 |---------|-------------|
-| [`packages/giti/`](./packages/giti/) | The CLI organism — 15 commands, 747+ tests |
+| [`packages/giti/`](./packages/giti/) | The CLI organism — analysis, lifecycle orchestration, and 800+ tests |
 | [`packages/giti-observatory/`](./packages/giti-observatory/) | Living terrarium visualization — watch the organism evolve in real-time |
 | [`packages/livingcode-core/`](./packages/livingcode-core/) | The Living Codebase framework — organism schema, validator, types |
+
+## What Changed
+
+The organism now includes a declarative action engine. During planning, `giti` can produce ranked action recommendations, and during `giti cycle` it can execute one guarded low-risk action before the normal build phase.
+
+The first built-in action drafts a regression stabilization artifact, records the action instance under `.organism/actions/`, and writes a lesson back into organism memory. Read the public feature doc in [docs/declarative-action-engine.md](./docs/declarative-action-engine.md).
 
 ## Installation
 
@@ -159,6 +165,8 @@ Work items are prioritized in tiers:
 4. **Feature enhancement** — growth signals, error handling
 5. **New growth** — new capabilities
 
+Planning now also attaches additive `action_recommendations` for declarative workflows that are eligible in the current organism state. These recommendations do not replace normal work-item planning.
+
 #### `giti build [item-id]`
 
 Run the Motor Cortex — implements a work item by calling Claude to generate code changes, applies them on a branch, and verifies with tests.
@@ -172,7 +180,7 @@ Requires `ANTHROPIC_API_KEY` environment variable. Includes self-correction: if 
 
 #### `giti cycle`
 
-Run a complete lifecycle cycle: sense → plan → build → review → commit → reflect.
+Run a complete lifecycle cycle: sense → plan → guarded action → build → review → commit → reflect.
 
 ```bash
 giti cycle                # Autonomous cycle
@@ -180,6 +188,8 @@ giti cycle --supervised   # Pause for human approval before merging
 ```
 
 Requires `ANTHROPIC_API_KEY`. In supervised mode, approved branches are left for human merge.
+
+If the plan includes an eligible low-risk declarative action, the orchestrator executes it before the normal build phase. In the current release this is limited to built-in, schema-validated actions with approved step types and `.organism/`-scoped writes.
 
 #### `giti organism <subcommand>`
 
@@ -321,6 +331,7 @@ The organism has multiple safety mechanisms:
 - **API budget** — configurable monthly token ceiling
 - **Immune System** — every change must pass 7 independent quality checks before merging (including secret scanning)
 - **Supervised mode** — optional human approval gate before any merge
+- **Action policy review** — declarative actions are schema-validated, reviewed by the immune system, and blocked from writing outside `.organism/`
 
 ## Project Structure
 
@@ -340,6 +351,7 @@ git-intelligence/                   # Monorepo root (npm workspaces)
 │   │       │   ├── immune-system/  # Sprint 1: adversarial review with 7 quality checks (incl. secret scanning)
 │   │       │   ├── memory/         # Sprint 1: persistent knowledge base, FTS search, hierarchical indexing
 │   │       │   ├── prefrontal-cortex/ # Sprint 2: strategic planning and prioritization
+│   │       │   ├── actions/        # Declarative action engine: templates, predicates, runner, history
 │   │       │   ├── motor-cortex/   # Sprint 2: Claude API code generation with self-correction
 │   │       │   ├── orchestrator/   # Sprint 2: lifecycle cycle, safety, scheduling, heartbeat monitor
 │   │       │   └── growth-hormone/ # Sprint 3: telemetry signal analysis and feature proposals
@@ -366,6 +378,7 @@ This project is a software organism. It starts as a CLI tool, but unlike any oth
 
 - **Sensory Cortex** observes the organism's health
 - **Prefrontal Cortex** decides what to work on
+- **Declarative Actions** execute reusable guarded workflows between planning and building
 - **Motor Cortex** writes the code (using Claude)
 - **Immune System** reviews every change adversarially
 - **Memory** learns from every decision and outcome
@@ -380,7 +393,7 @@ This project uses npm workspaces. All commands run from the repo root:
 ```bash
 npm install          # Install dependencies for all packages
 npm run build        # Build all packages with tsup
-npm test             # Run all tests (782 total: 767 giti + 15 framework)
+npm test             # Run all tests across the monorepo
 npm run lint         # Type-check all packages with tsc
 ```
 
