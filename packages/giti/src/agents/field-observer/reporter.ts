@@ -29,9 +29,20 @@ export async function writeFieldReport(
   const md = formatMarkdown(observation);
   const json = JSON.stringify(observation, null, 2);
 
-  await atomicWrite(mdPath, md);
-  await atomicWrite(jsonPath, json);
-  await atomicWrite(latestPath, json);
+  // Stage all three files to .tmp siblings first; if any write fails,
+  // none of the renames run and the slug dir is untouched.
+  const stamp = `${process.pid}-${Date.now()}`;
+  const mdTmp = `${mdPath}.tmp-${stamp}`;
+  const jsonTmp = `${jsonPath}.tmp-${stamp}`;
+  const latestTmp = `${latestPath}.tmp-${stamp}`;
+
+  await fs.writeFile(mdTmp, md, 'utf-8');
+  await fs.writeFile(jsonTmp, json, 'utf-8');
+  await fs.writeFile(latestTmp, json, 'utf-8');
+
+  await fs.rename(mdTmp, mdPath);
+  await fs.rename(jsonTmp, jsonPath);
+  await fs.rename(latestTmp, latestPath);
 
   return { mdPath, jsonPath };
 }
@@ -75,10 +86,4 @@ function formatMarkdown(obs: FieldObservation): string {
   lines.push(`- Hotspots: ${obs.hotspots.hotspots.length} file(s), ${obs.hotspots.couplings.length} coupling(s) over ${obs.hotspots.period}`);
   lines.push(`- Ghosts: ${obs.ghosts.staleBranches.length} stale branch(es), ${obs.ghosts.deadCode.length} dead-code signal(s)`);
   return lines.join('\n');
-}
-
-async function atomicWrite(target: string, content: string): Promise<void> {
-  const tmp = `${target}.tmp-${process.pid}-${Date.now()}`;
-  await fs.writeFile(tmp, content, 'utf-8');
-  await fs.rename(tmp, target);
 }

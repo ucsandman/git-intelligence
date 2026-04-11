@@ -72,4 +72,16 @@ describe('writeFieldReport + readLatestReport', () => {
     expect(md).toContain('# Custom');
     expect(md).toContain('Lorem ipsum.');
   });
+
+  it('renders the partial warning line when observation is partial', async () => {
+    const obs = fakeObservation({
+      partial: true,
+      errors: ['pulse: timeout', 'ghosts: enoent'],
+    });
+    const result = await writeFieldReport(tmp, obs);
+    const md = await fs.readFile(result.mdPath, 'utf-8');
+    expect(md).toContain('⚠ Partial observation.');
+    expect(md).toContain('pulse: timeout');
+    expect(md).toContain('ghosts: enoent');
+  });
 });
