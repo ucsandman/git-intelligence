@@ -19,6 +19,7 @@ import { executeTelemetry } from './cli/telemetry-cmd.js';
 import { executeSimulate } from './cli/simulate.js';
 import { executeGrow } from './cli/grow.js';
 import { executeDispatch } from './cli/dispatch.js';
+import { executeObserve } from './cli/observe.js';
 
 process.on('unhandledRejection', (reason, _promise) => {
   console.error('Unhandled Rejection:', reason);
@@ -186,6 +187,15 @@ program
   .option('--platform <name>', 'Format for platform (twitter, linkedin, hn, blog)')
   .action(async (options: { json?: boolean; path?: string; cycle?: string; list?: boolean; platform?: string }) => {
     await executeDispatch(options);
+  });
+
+program
+  .command('observe')
+  .description('Run field observation against configured external targets')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'giti repo path (default: current directory)')
+  .action(async (options: { json?: boolean; path?: string }) => {
+    await executeObserve(options);
   });
 
 program

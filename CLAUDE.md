@@ -14,11 +14,11 @@ A CLI tool that transforms raw git repository data into actionable intelligence,
 ## Dev Commands
 All commands run from the repo root via npm workspaces:
 - `npm run build` — build all packages with tsup
-- `npm test` — run all tests (747+ giti + 18 observatory + 15 framework)
+- `npm test` — run all tests (836+ giti + 18 observatory + 15 framework)
 - `npm run lint` — type-check all packages with tsc --noEmit
 - `cd packages/giti-observatory && npm run dev` — start observatory on port 3333
 
-## CLI Commands (15 total)
+## CLI Commands (16 total)
 - `giti pulse` — repo health snapshot
 - `giti hotspots` — volatile file detection with coupling
 - `giti ghosts` — abandoned work detection
@@ -28,6 +28,7 @@ All commands run from the repo root via npm workspaces:
 - `giti plan` — prefrontal cortex cycle planning
 - `giti build [id]` — motor cortex code implementation (requires ANTHROPIC_API_KEY)
 - `giti cycle` — full lifecycle cycle (requires ANTHROPIC_API_KEY)
+- `giti observe` — Field Observer: run a read-only observation pass against configured external targets (optional ANTHROPIC_API_KEY for narrative)
 - `giti organism <sub>` — organism management (start, stop, status)
 - `giti telemetry <sub>` — telemetry management (on, off, status, show, clear)
 - `giti simulate` — generate synthetic telemetry from diverse repo types
@@ -68,6 +69,17 @@ All commands run from the repo root via npm workspaces:
 - `packages/livingcode-core/` — Extracted framework: organism.json schema, validator, and shared types (OrganismConfig, OrganismManifest)
 - Monorepo migration: npm workspaces with `packages/giti/` and `packages/livingcode-core/`
 
+### Field Observer — Watching External Repos Read-Only
+- `src/agents/field-observer/` — new subsystem that observes external repositories (not giti itself). Pipeline: `target-config` → `runner` → `narrator` → `reporter`
+- `target-config.ts` — loads `field_targets` from organism.json, filters to enabled entries whose path exists and contains `.git` (file or directory — worktree-safe). Logs a breadcrumb on malformed config via `fs.access` + local re-parse
+- `runner.ts` — composes a raw observation by calling `src/analyzers/*` functions directly (NOT `runSensoryCortex`, which would write into the target's `.organism/`). Each analyzer wrapped in `withTimeout` (default 30s); failures collected into `errors[]` and `partial: true` instead of aborting
+- `narrator.ts` — Claude Haiku call with prompt-cached system block (`cache_control: { type: 'ephemeral' }`), delimited `<previous_entry>` tags for injection hardening, deterministic template fallback on any failure or when disabled. `deriveMood()` priority order: `alarmed > curious > dozing > attentive`, first-run default `curious`
+- `reporter.ts` — atomic stage-all-then-rename-all of `<timestamp>.md`, `<timestamp>.json`, and `latest.json` (pointer) under `.organism/field-reports/<slug>/`. Partial-failure window shrunk to three sequential renames
+- `index.ts` — public `observe(gitiPath, cycle)` wires the pipeline, per-target try/catch, narrator-fallback error logging to stderr
+- Cycle integration: new Phase 0 `OBSERVE_EXTERNAL` in `orchestrator/cycle.ts` runs before `SENSE`, wrapped in its own try/catch (non-fatal), with kill-switch re-check at the top
+- Config: `organism.json` has `field_targets: FieldTarget[]` (slug/path/enabled) and `narrator: NarratorConfig` (enabled/model/max_tokens/cache_system_prompt), both optional on `OrganismConfig`
+- Plan and design docs: `docs/superpowers/plans/2026-04-11-field-observer-backend.md`, `docs/superpowers/specs/2026-04-11-field-observer-design.md`, investigation notes at `docs/superpowers/plans/notes/2026-04-11-field-observer-investigation.md`
+
 ### Sprint 5: Observatory — Living Terrarium Visualization
 - `packages/giti-observatory/` — Next.js 15 app with react-three-fiber 3D terrarium
 - `src/types/` — ObservatorySnapshot, SceneState, CycleDigest types
@@ -82,7 +94,7 @@ All commands run from the repo root via npm workspaces:
 ### Shared Infrastructure
 - `src/agents/types.ts` — AgentRole, OrganismEvent, EventType, OrganismConfig
 - `src/agents/utils.ts` — filesystem ops (readJsonFile, writeJsonFile, ensureOrganismDir), runCommand (execFileSync)
-- `src/cli/` — CLI entrypoints for all 14 commands
+- `src/cli/` — CLI entrypoints for all 16 commands
 - `src/integrations/openclaw/` — optional tracing (env-gated via OPENCLAW_API_KEY)
 - `src/integrations/audit/` — append-only agent action audit logger (JSON-lines)
 
@@ -90,6 +102,7 @@ All commands run from the repo root via npm workspaces:
 ```
 .organism/
 ├── state-reports/        # Sensory cortex outputs (JSON, timestamped)
+├── field-reports/        # Field Observer outputs per target: <slug>/<timestamp>.{md,json} + latest.json
 ├── reviews/              # Immune system verdicts (JSON, per-branch)
 ├── backlog/              # Work items and cycle plans (JSON)
 ├── growth-proposals/     # Growth Hormone proposals (JSON, per-proposal)

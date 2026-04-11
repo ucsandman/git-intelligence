@@ -14,7 +14,21 @@ This is a **monorepo** with three packages:
 
 ## What Changed
 
-The organism now includes a declarative action engine. During planning, `giti` can produce ranked action recommendations, and during `giti cycle` it can execute one guarded low-risk action before the normal build phase.
+### Field Observer — `giti` watches the repos it cares about
+
+The organism now has a **Field Observer** subsystem that watches one or more *external* repositories read-only and publishes a field report every cycle. It's what the organism does for someone other than itself — a small, running demonstration of a one-person automation loop pointed outward.
+
+- Configure targets in `organism.json` under `field_targets` (slug + absolute path + enabled flag)
+- Every cycle runs a new `OBSERVE_EXTERNAL` phase *before* `SENSE` that calls the existing analyzers (pulse, hotspots, ghosts) against each target
+- A Claude Haiku call composes a short field-note narrative with prompt caching (deterministic template fallback on any failure)
+- Observations land in `.organism/field-reports/<slug>/` as an atomic markdown + JSON pair plus a `latest.json` pointer
+- Four-state mood — `curious`, `attentive`, `alarmed`, `dozing` — derived from the diff vs. the previous observation
+
+Run it directly with `giti observe` (see commands below) — no full cycle required.
+
+### Declarative Action Engine
+
+The organism also includes a declarative action engine. During planning, `giti` can produce ranked action recommendations, and during `giti cycle` it can execute one guarded low-risk action before the normal build phase.
 
 The first built-in action drafts a regression stabilization artifact, records the action instance under `.organism/actions/`, and writes a lesson back into organism memory. Read the public feature doc in [docs/declarative-action-engine.md](./docs/declarative-action-engine.md).
 
@@ -178,9 +192,56 @@ giti build --all      # Build all planned items
 
 Requires `ANTHROPIC_API_KEY` environment variable. Includes self-correction: if the first attempt fails compilation or tests, it retries once with error context.
 
+#### `giti observe`
+
+Run the Field Observer — analyze every configured external target and publish a field report without running the full cycle. This is the easiest way to see the new subsystem in action.
+
+```bash
+giti observe                     # Observe every enabled target in organism.json
+giti observe --json              # Raw JSON output for scripting
+```
+
+```
+◉ practical-systems  C:\Projects\Practical Systems
+  Mood: curious  Cycle: 42  Observed: 2026-04-11T13:57:00.000Z
+
+  Two new hotspots surfaced in pipeline-tracker this morning. Both touch
+  the dashclaw install path. Still no tests on the new requirements.
+  Quiet otherwise.
+
+  Pulse: 5 commits this week · 3 active branches · 42% test ratio
+  Hotspots: 2 · Ghosts: 1 stale branches, 0 dead-code signals
+  Report: .organism/field-reports/practical-systems/
+```
+
+Requires `ANTHROPIC_API_KEY` for the narrative. Without it, the observer still produces reports, just with a deterministic template narrative instead of the Claude-generated one.
+
+Configure targets in `organism.json`:
+
+```json
+{
+  "field_targets": [
+    { "slug": "practical-systems", "path": "C:\\Projects\\Practical Systems", "enabled": true }
+  ],
+  "narrator": {
+    "enabled": true,
+    "model": "claude-haiku-4-5-20251001",
+    "max_tokens": 600,
+    "cache_system_prompt": true
+  }
+}
+```
+
+Reports are written atomically to `.organism/field-reports/<slug>/`:
+- `<timestamp>.md` — human-readable field note with narrative and raw signals
+- `<timestamp>.json` — machine-readable observation
+- `latest.json` — pointer to the most recent observation (used by the mood-diff on the next run)
+
+**Never writes to the target repo.** The observer calls analyzer functions directly — no state reports, no git operations, no writes of any kind against the target.
+
 #### `giti cycle`
 
-Run a complete lifecycle cycle: sense → plan → guarded action → build → review → commit → reflect.
+Run a complete lifecycle cycle: observe external targets → sense → plan → guarded action → build → review → commit → reflect.
 
 ```bash
 giti cycle                # Autonomous cycle
@@ -345,7 +406,7 @@ git-intelligence/                   # Monorepo root (npm workspaces)
 │   │       ├── formatters/         # Sprint 0: chalk terminal output formatting
 │   │       ├── utils/              # Shared: git wrapper, time formatting
 │   │       ├── types/              # Shared: TypeScript interfaces
-│   │       ├── cli/                # CLI entrypoints for all 14 commands
+│   │       ├── cli/                # CLI entrypoints for all 16 commands
 │   │       ├── agents/
 │   │       │   ├── sensory-cortex/ # Sprint 1: state observation and trend detection
 │   │       │   ├── immune-system/  # Sprint 1: adversarial review with 7 quality checks (incl. secret scanning)
@@ -354,6 +415,7 @@ git-intelligence/                   # Monorepo root (npm workspaces)
 │   │       │   ├── actions/        # Declarative action engine: templates, predicates, runner, history
 │   │       │   ├── motor-cortex/   # Sprint 2: Claude API code generation with self-correction
 │   │       │   ├── orchestrator/   # Sprint 2: lifecycle cycle, safety, scheduling, heartbeat monitor
+│   │       │   ├── field-observer/ # Field Observer: read-only watching of external repos (runner, narrator, reporter)
 │   │       │   └── growth-hormone/ # Sprint 3: telemetry signal analysis and feature proposals
 │   │       ├── telemetry/          # Sprint 3: opt-in anonymous usage data collection
 │   │       ├── simulator/          # Sprint 3: synthetic repo generation for testing
@@ -377,6 +439,7 @@ git-intelligence/                   # Monorepo root (npm workspaces)
 This project is a software organism. It starts as a CLI tool, but unlike any other project, it maintains, improves, and grows itself autonomously through a coordinated team of AI agents:
 
 - **Sensory Cortex** observes the organism's health
+- **Field Observer** watches external repos read-only and publishes field reports (new)
 - **Prefrontal Cortex** decides what to work on
 - **Declarative Actions** execute reusable guarded workflows between planning and building
 - **Motor Cortex** writes the code (using Claude)
