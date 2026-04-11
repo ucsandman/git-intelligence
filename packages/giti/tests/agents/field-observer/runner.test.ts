@@ -41,5 +41,6 @@ describe('runFieldObservation', () => {
 
     expect(result.partial).toBe(true);
     expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors.some((e) => e.includes('timed out after 1ms'))).toBe(true);
   });
 });
