@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { CycleOptions, CycleResult } from './types.js';
 import type { StateReport } from '../sensory-cortex/types.js';
-import type { WorkItem } from '../prefrontal-cortex/types.js';
+import type { CyclePlan, WorkItem } from '../prefrontal-cortex/types.js';
 import type { ReviewVerdict } from '../immune-system/types.js';
 import * as safety from './safety.js';
 import { runSensoryCortex } from '../sensory-cortex/index.js';
@@ -13,6 +13,12 @@ import { createBaselinesFromReport, writeBaselines } from '../immune-system/base
 import { recordMemoryEvent } from '../memory/index.js';
 import { mergeBranch, deleteBranch, switchToMain, pushBranch } from '../motor-cortex/branch-manager.js';
 import { runGrowthHormone } from '../growth-hormone/index.js';
+import {
+  buildActionInstance,
+  getActionTemplate,
+  loadActionPlanningContext,
+  runActionInstance,
+} from '../actions/index.js';
 import { createGitHubClient } from '../../integrations/github/client.js';
 import { formatPRBody, formatPRTitle, getPRLabels } from '../../integrations/github/pr-formatter.js';
 import { isGovernanceEnabled, guardCodeChange, waitForApproval, recordOutcome } from '../../integrations/dashclaw/governance.js';
@@ -66,6 +72,8 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
         // No backlog dir or read error — that's fine
       }
     }
+
+    await runRecommendedAction(repoPath, cycle, report, plan);
 
     if (plan.selected_items.length === 0) {
       await recordMemoryEvent(repoPath, 'cycle-complete', `Cycle ${cycle} stable`, { cycle, outcome: 'stable' });
@@ -271,6 +279,58 @@ function detectRegression(before: StateReport, after: StateReport): string | nul
   if (after.quality.lint_error_count > before.quality.lint_error_count) return 'New lint errors introduced';
   if (after.quality.test_coverage_percent < before.quality.test_coverage_percent - 2) return 'Coverage dropped >2%';
   return null;
+}
+
+async function runRecommendedAction(
+  repoPath: string,
+  cycle: number,
+  report: StateReport,
+  plan: CyclePlan,
+): Promise<void> {
+  const recommendation = plan.action_recommendations?.find(
+    (candidate) => candidate.risk === 'read_only' || candidate.risk === 'low',
+  );
+  if (!recommendation) {
+    return;
+  }
+
+  const template = getActionTemplate(recommendation.template_id);
+  if (!template) {
+    await recordMemoryEvent(
+      repoPath,
+      'implementation-failed',
+      `Action template missing: ${recommendation.template_id}`,
+      {
+        cycle,
+        action_template_id: recommendation.template_id,
+      },
+    );
+    return;
+  }
+
+  try {
+    const context = await loadActionPlanningContext(repoPath, report, { cycle });
+    const instance = {
+      ...buildActionInstance(template, context),
+      cycle,
+    };
+    const result = await runActionInstance(repoPath, template, instance);
+
+    if (result.status === 'failed' || result.status === 'rejected') {
+      await recordMemoryEvent(repoPath, 'implementation-failed', `Action failed: ${template.name}`, {
+        cycle,
+        action_instance_id: result.id,
+        action_template_id: template.id,
+        failure_reason: result.failure_reason ?? 'unknown action failure',
+      });
+    }
+  } catch (error) {
+    await recordMemoryEvent(repoPath, 'implementation-failed', `Action failed: ${template.name}`, {
+      cycle,
+      action_template_id: template.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 function makeResult(cycle: number, startTime: number, outcome: CycleResult['outcome'], reason?: string): CycleResult {

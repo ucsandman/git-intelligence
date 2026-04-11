@@ -42,6 +42,32 @@ export const regressionClusterDraftStabilizationPlan: ActionTemplate = {
       produces: 'current_state',
     },
     {
+      id: 'query-memory',
+      title: 'Query memory for fragile files and regressions',
+      type: 'query_memory',
+      query: 'fragile regressions stabilization',
+      produces: 'memory_matches',
+    },
+    {
+      id: 'confirm-regression-pressure',
+      title: 'Confirm regression pressure is active',
+      type: 'evaluate_predicate',
+      predicate: {
+        type: 'metric_lt',
+        metric: 'quality.test_pass_rate',
+        value: 0.99,
+      },
+      produces: 'regression_pressure_confirmed',
+    },
+    {
+      id: 'select-targets',
+      title: 'Select stabilization targets',
+      type: 'select_targets',
+      source: 'memory_matches.results',
+      limit: 5,
+      produces: 'selected_targets',
+    },
+    {
       id: 'generate-artifact',
       title: 'Generate stabilization artifact',
       type: 'generate_artifact',
@@ -62,6 +88,15 @@ export const regressionClusterDraftStabilizationPlan: ActionTemplate = {
       type: 'record_event',
       event_type: 'plan-created',
       summary: 'Drafted a stabilization plan from the declarative action engine',
+      data_from: 'selected_targets',
+    },
+    {
+      id: 'record-lesson',
+      title: 'Record stabilization lesson',
+      type: 'record_lesson',
+      category: 'regressions',
+      lesson_from: 'artifact',
+      confidence: 0.82,
     },
   ],
   success_criteria: [
@@ -77,6 +112,10 @@ export const regressionClusterDraftStabilizationPlan: ActionTemplate = {
   learning_hooks: [
     {
       type: 'record_event',
+    },
+    {
+      type: 'record_lesson',
+      category: 'regressions',
     },
   ],
   provenance: {
