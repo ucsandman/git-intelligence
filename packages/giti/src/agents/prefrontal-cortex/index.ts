@@ -5,6 +5,7 @@ import { loadKnowledgeBase } from '../memory/store.js';
 import { loadBacklog, saveWorkItem, saveCyclePlan } from './backlog.js';
 import { generateWorkItems, prioritizeItems, generateGrowthItems } from './prioritizer.js';
 import { loadApprovedProposals } from '../growth-hormone/index.js';
+import { planActions } from '../actions/planner.js';
 
 interface CooldownFile {
   until: string;
@@ -83,6 +84,13 @@ export async function runPrefrontalCortex(
   );
   const cycleNumber = counterData?.count ?? 1;
 
+  let actionRecommendations: CyclePlan['action_recommendations'] = [];
+  try {
+    actionRecommendations = await planActions(repoPath, stateReport);
+  } catch {
+    actionRecommendations = [];
+  }
+
   // Step 9: Estimate overall risk
   const fragilePathSet = new Set(kb.patterns.fragile_files.map((f) => f.path));
 
@@ -109,6 +117,7 @@ export async function runPrefrontalCortex(
       : 'Standard prioritization based on tier and priority score',
     estimated_risk: estimatedRisk,
     memory_consulted: kb.lessons.length > 0 || kb.patterns.fragile_files.length > 0,
+    action_recommendations: actionRecommendations,
   };
 
   // Step 11: Persist if not dry run

@@ -51,3 +51,13 @@ export interface FragileFileInfo {
 export interface RegressionContext {
   fragile_files: FragileFileInfo[];
 }
+
+export interface ActionPolicyReason {
+  code: 'kill-switch' | 'cooldown' | 'write-root' | 'effect-mismatch' | 'read-only';
+  message: string;
+}
+
+export interface ActionPolicyVerdict {
+  allowed: boolean;
+  reasons: ActionPolicyReason[];
+}
