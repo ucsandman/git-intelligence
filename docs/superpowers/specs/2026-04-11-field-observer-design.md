@@ -153,6 +153,8 @@ dozing     ← no activity across 3+ consecutive cycles
 
 The previous observation is read from `.organism/field-reports/<slug>/latest.json` (a symlink-or-copy updated by the reporter after each write).
 
+**First-run default:** when no previous observation exists (first cycle ever, or `latest.json` missing/corrupted), mood defaults to `curious` — the observer is meeting the target for the first time, so "newness" is the honest read. `alarmed` is never assigned on a first run; it requires a prior baseline to compare against.
+
 **`organism.json` additions:**
 
 ```json
@@ -216,9 +218,11 @@ At cycle start, the seeder ensures the backlog contains an always-available synt
 }
 ```
 
-This item is a no-op from the motor cortex's perspective — the `OBSERVE_EXTERNAL` phase is what actually fulfills it, before `PLAN` even runs. Its only purpose is to guarantee `prioritizer.ts` has something to pick, so the rest of the cycle doesn't dead-end.
+**Relationship to the cycle:** `OBSERVE_EXTERNAL` already ran at the top of the cycle, so by the time `PLAN` is selecting, the observation is already on disk. The seeded item is the backlog record that documents "this cycle's observation happened" and guarantees `prioritizer.ts` has a concrete item to pick rather than dead-ending on an empty queue. When the planner picks it, it is marked completed (`status: satisfied-by-observe-external`) and the builder skips it entirely. The motor cortex never touches it.
 
-The seeder is idempotent: if the item already exists it is not duplicated.
+The seeder is idempotent: if an unresolved copy of the item already exists it is not duplicated. If the previous cycle's copy was marked completed, a fresh copy is seeded for the new cycle.
+
+**Prioritizer change:** the prioritizer gains one small additive behavior: items with `always_available: true` bypass the tier filter entirely. This guards against the known-failure mode where the bug is "filter excludes everything" — a structurally seeded item cannot be structurally filtered out. This is the only intentional non-bug-fix change to `prioritizer.ts` in this plan.
 
 **Change 2 — Prioritizer bug hunt:**
 
