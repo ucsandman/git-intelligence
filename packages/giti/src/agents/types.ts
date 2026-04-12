@@ -54,6 +54,8 @@ export interface NarratorConfig {
   model: string;
   max_tokens: number;
   cache_system_prompt: boolean;
+  /** Optional project-specific context appended to the narrator's system prompt. */
+  context?: string;
 }
 
 export interface OrganismConfig {

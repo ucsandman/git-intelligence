@@ -21,8 +21,14 @@ export async function collectTestHealth(repoPath: string): Promise<TestHealthRes
 
 async function collectPassRate(repoPath: string): Promise<number> {
   try {
-    const result = runCommand('npx', ['vitest', 'run', '--reporter=json'], repoPath);
-    if (result.status !== 0 || !result.stdout) return 0;
+    // In a monorepo, vitest must run from the package directory (where
+    // vitest.config.ts lives) rather than the repo root. The root has no
+    // config, so globals like describe/it are undefined and every test file
+    // fails to load — producing a false test_pass_rate of 0.
+    const gitiPkg = path.join(repoPath, 'packages', 'giti');
+    const testDir = await fs.stat(gitiPkg).then(() => gitiPkg).catch(() => repoPath);
+    const result = runCommand('npx', ['vitest', 'run', '--reporter=json'], testDir);
+    if (!result.stdout) return 0;
 
     const parsed = JSON.parse(result.stdout) as {
       numPassedTests?: number;
@@ -41,8 +47,10 @@ async function collectPassRate(repoPath: string): Promise<number> {
 
 async function collectCoverage(repoPath: string): Promise<number> {
   try {
-    runCommand('npx', ['vitest', 'run', '--coverage', '--reporter=json'], repoPath);
-    const coveragePath = path.join(repoPath, 'coverage', 'coverage-summary.json');
+    const gitiPkg = path.join(repoPath, 'packages', 'giti');
+    const testDir = await fs.stat(gitiPkg).then(() => gitiPkg).catch(() => repoPath);
+    runCommand('npx', ['vitest', 'run', '--coverage', '--reporter=json'], testDir);
+    const coveragePath = path.join(testDir, 'coverage', 'coverage-summary.json');
     const raw = await fs.readFile(coveragePath, 'utf-8');
     const parsed = JSON.parse(raw) as {
       total?: { statements?: { pct?: number } };
@@ -55,7 +63,9 @@ async function collectCoverage(repoPath: string): Promise<number> {
 
 async function collectLintErrors(repoPath: string): Promise<number> {
   try {
-    const result = runCommand('npx', ['tsc', '--noEmit'], repoPath);
+    const gitiPkg = path.join(repoPath, 'packages', 'giti');
+    const testDir = await fs.stat(gitiPkg).then(() => gitiPkg).catch(() => repoPath);
+    const result = runCommand('npx', ['tsc', '--noEmit'], testDir);
     if (result.status === 0) return 0;
 
     const errorPattern = /error TS\d+/g;

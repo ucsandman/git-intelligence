@@ -76,6 +76,7 @@
     "enabled": true,
     "model": "claude-haiku-4-5-20251001",
     "max_tokens": 600,
-    "cache_system_prompt": true
+    "cache_system_prompt": true,
+    "context": "Practical Systems is a pipeline-tracker for an AI consulting business. The owner is building it solo across multiple GSD phases. Tests are deliberately sparse during early buildout. Focus observations on hotspot churn, new files appearing, whether active work areas are stabilizing, and cross-phase progress signals."
   }
 }
