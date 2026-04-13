@@ -74,32 +74,39 @@ describe('branch-manager', () => {
   });
 
   describe('generateBranchName', () => {
-    it('creates correct slug from title', () => {
-      expect(generateBranchName('Fix performance regression')).toBe(
-        'organism/motor/fix-performance-regression',
+    it('creates correct slug from title with cycle suffix', () => {
+      expect(generateBranchName('Fix performance regression', 37)).toBe(
+        'organism/motor/fix-performance-regression-c37',
       );
     });
 
     it('handles special characters', () => {
-      expect(generateBranchName('Add feature: cool stuff! (v2)')).toBe(
-        'organism/motor/add-feature-cool-stuff-v2',
+      expect(generateBranchName('Add feature: cool stuff! (v2)', 1)).toBe(
+        'organism/motor/add-feature-cool-stuff-v2-c1',
       );
     });
 
-    it('truncates slug at 50 characters', () => {
+    it('truncates slug at 50 characters (cycle suffix appended after)', () => {
       const longTitle =
         'This is a very long title that should be truncated to fifty characters in the slug portion';
-      const branch = generateBranchName(longTitle);
-      const slug = branch.replace('organism/motor/', '');
+      const branch = generateBranchName(longTitle, 99);
+      // Slug portion (before -c<cycle>) should be <= 50 chars
+      const slug = branch.replace('organism/motor/', '').replace(/-c\d+$/, '');
       expect(slug.length).toBeLessThanOrEqual(50);
-      // Should not end with a hyphen after truncation
       expect(slug).not.toMatch(/-$/);
+      expect(branch).toMatch(/-c99$/);
     });
 
     it('strips leading and trailing hyphens from slug', () => {
-      expect(generateBranchName('---leading-trailing---')).toBe(
-        'organism/motor/leading-trailing',
+      expect(generateBranchName('---leading-trailing---', 5)).toBe(
+        'organism/motor/leading-trailing-c5',
       );
+    });
+
+    it('produces distinct names for same title across cycles', () => {
+      const a = generateBranchName('Fix failing tests', 37);
+      const b = generateBranchName('Fix failing tests', 38);
+      expect(a).not.toBe(b);
     });
   });
 

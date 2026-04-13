@@ -17,10 +17,24 @@ interface OrganismJson {
   evolutionary_principles: string[];
 }
 
+async function savePatchOnFailure(
+  repoPath: string,
+  branchName: string,
+  cycleNumber: number,
+  patchContent: string,
+): Promise<string> {
+  const dir = path.join(repoPath, '.organism', 'failed-patches');
+  await fs.mkdir(dir, { recursive: true });
+  const safeName = branchName.replace(/[\\/]/g, '_');
+  const file = path.join(dir, `${safeName}-c${cycleNumber}.patch`);
+  await fs.writeFile(file, patchContent, 'utf-8');
+  return file;
+}
+
 export async function runMotorCortex(
   repoPath: string,
   workItem: WorkItem,
-  _cycleNumber: number,
+  cycleNumber: number,
 ): Promise<ImplementationResult> {
   const config = await loadOrganismConfig(repoPath);
   const organismJson = await readJsonFile<OrganismJson>(
@@ -52,7 +66,7 @@ export async function runMotorCortex(
     current_file_contents: {},
   };
 
-  const branchName = generateBranchName(workItem.title);
+  const branchName = generateBranchName(workItem.title, cycleNumber);
 
   try {
     const agentResult = await implementWithAgent(context, repoPath);
@@ -61,8 +75,32 @@ export async function runMotorCortex(
     if (agentResult.patchContent && agentResult.success) {
       console.log(`[motor-cortex] Applying patch locally (${agentResult.patchContent.length} bytes)...`);
 
-      // Create local branch
-      await createBranch(repoPath, branchName);
+      // Create local branch — if this fails (e.g. branch already exists),
+      // persist the patch so the agent's work isn't silently lost.
+      try {
+        await createBranch(repoPath, branchName);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const savedPath = await savePatchOnFailure(repoPath, branchName, cycleNumber, agentResult.patchContent);
+        console.log(`[motor-cortex] Branch creation failed: ${msg}`);
+        console.log(`[motor-cortex] Patch saved for later apply: ${savedPath}`);
+        await switchToMain(repoPath).catch(() => {});
+        return {
+          work_item_id: workItem.id,
+          branch_name: branchName,
+          status: 'failed',
+          files_modified: [],
+          files_created: [],
+          files_deleted: [],
+          lines_added: 0,
+          lines_removed: 0,
+          tests_added: 0,
+          tests_modified: 0,
+          pre_review_check: { lint_clean: false, tests_pass: false, builds: false },
+          error: `Branch creation failed: ${msg} (patch saved to ${savedPath})`,
+          claude_tokens_used: agentResult.tokensUsed,
+        };
+      }
 
       // Write patch to temp file and apply
       const patchFile = path.join(repoPath, '.organism', 'temp-patch.patch');
@@ -75,6 +113,9 @@ export async function runMotorCortex(
         const applyFallback = runCommand('git', ['apply', '--3way', patchFile], repoPath);
         if (applyFallback.status !== 0) {
           console.log(`[motor-cortex] Patch apply failed: ${applyFallback.stderr}`);
+          // Persist the patch so the work isn't lost — user can inspect/apply manually.
+          const savedPath = await savePatchOnFailure(repoPath, branchName, cycleNumber, agentResult.patchContent);
+          console.log(`[motor-cortex] Patch saved for later apply: ${savedPath}`);
           // Force-clean the working directory before switching back
           runCommand('git', ['checkout', '--', '.'], repoPath);
           runCommand('git', ['clean', '-fd'], repoPath);
@@ -92,13 +133,13 @@ export async function runMotorCortex(
             tests_added: 0,
             tests_modified: 0,
             pre_review_check: { lint_clean: false, tests_pass: false, builds: false },
-            error: `Patch apply failed: ${applyFallback.stderr}`,
+            error: `Patch apply failed: ${applyFallback.stderr} (patch saved to ${savedPath})`,
             claude_tokens_used: agentResult.tokensUsed,
           };
         }
         // git apply doesn't commit, so commit manually
         const commitMsg = formatCommitMessage(
-          workItem.title, workItem.id, workItem.tier, _cycleNumber,
+          workItem.title, workItem.id, workItem.tier, cycleNumber,
           workItem.description, workItem.rationale,
         );
         await commitChanges(repoPath, commitMsg, agentResult.filesChanged);

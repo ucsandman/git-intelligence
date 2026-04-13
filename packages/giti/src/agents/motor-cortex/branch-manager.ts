@@ -39,14 +39,14 @@ export async function deleteRemoteBranch(repoPath: string, branchName: string, r
   await git.push(remote, `:${branchName}`);
 }
 
-export function generateBranchName(title: string): string {
+export function generateBranchName(title: string, cycleNumber: number): string {
   const slug = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 50)
     .replace(/-$/, '');
-  return `organism/motor/${slug}`;
+  return `organism/motor/${slug}-c${cycleNumber}`;
 }
 
 export function formatCommitMessage(
