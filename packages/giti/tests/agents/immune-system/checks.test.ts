@@ -116,31 +116,25 @@ describe('runTestCheck', () => {
     vi.resetAllMocks();
   });
 
-  it('returns pass when all tests pass and coverage is good', async () => {
-    // First call: current branch test run
-    mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50),
-      stderr: '',
-      status: 0,
-    });
-    // Git baseline comparison calls
-    mockRunCommand.mockReturnValueOnce({ stdout: 'feature/test\n', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50),
-      stderr: '',
-      status: 0,
-    });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    // Coverage run
-    mockRunCommand.mockReturnValueOnce({
-      stdout: '',
-      stderr: '',
-      status: 0,
-    });
+  // Default runCommand mock: all calls return empty success. Individual tests
+  // only need to mock fs.readFile for the JSON output files + coverage summary.
+  function setupDefaultRunCommand() {
+    mockRunCommand.mockReturnValue({ stdout: '', stderr: '', status: 0 });
+    // git rev-parse --abbrev-ref HEAD (returns current branch name)
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 }); // branch vitest
+    mockRunCommand.mockReturnValueOnce({ stdout: 'feature/test\n', stderr: '', status: 0 }); // rev-parse
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 }); // git stash
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 }); // git checkout main
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 }); // main vitest
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 }); // git checkout back
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 }); // git stash pop
+    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 }); // coverage vitest
+  }
 
+  it('returns pass when all tests pass and coverage is good', async () => {
+    setupDefaultRunCommand();
+    mockReadFile.mockResolvedValueOnce(vitestJson(50)); // branch JSON
+    mockReadFile.mockResolvedValueOnce(vitestJson(50)); // main JSON
     mockReadFile.mockResolvedValueOnce(
       JSON.stringify({ total: { statements: { pct: 92 } } }),
     );
@@ -154,25 +148,11 @@ describe('runTestCheck', () => {
   });
 
   it('returns fail when some tests fail', async () => {
-    mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50, [
-        'suite A > test 1',
-        'suite A > test 2',
-        'suite B > test 3',
-      ]),
-      stderr: '',
-      status: 1,
-    });
-    mockRunCommand.mockReturnValueOnce({ stdout: 'feature/test\n', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50),
-      stderr: '',
-      status: 0,
-    });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
+    setupDefaultRunCommand();
+    mockReadFile.mockResolvedValueOnce(
+      vitestJson(50, ['suite A > test 1', 'suite A > test 2', 'suite B > test 3']),
+    );
+    mockReadFile.mockResolvedValueOnce(vitestJson(50));
 
     const result = await runTestCheck('/repo', null, mockConfig);
 
@@ -182,27 +162,9 @@ describe('runTestCheck', () => {
   });
 
   it('returns fail when coverage is below floor', async () => {
-    mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50),
-      stderr: '',
-      status: 0,
-    });
-    mockRunCommand.mockReturnValueOnce({ stdout: 'feature/test\n', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50),
-      stderr: '',
-      status: 0,
-    });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({
-      stdout: '',
-      stderr: '',
-      status: 0,
-    });
-
+    setupDefaultRunCommand();
+    mockReadFile.mockResolvedValueOnce(vitestJson(50));
+    mockReadFile.mockResolvedValueOnce(vitestJson(50));
     mockReadFile.mockResolvedValueOnce(
       JSON.stringify({ total: { statements: { pct: 65 } } }),
     );
@@ -214,27 +176,9 @@ describe('runTestCheck', () => {
   });
 
   it('returns warn when coverage decreased but is above floor', async () => {
-    mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50),
-      stderr: '',
-      status: 0,
-    });
-    mockRunCommand.mockReturnValueOnce({ stdout: 'feature/test\n', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({
-      stdout: vitestJson(50),
-      stderr: '',
-      status: 0,
-    });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({ stdout: '', stderr: '', status: 0 });
-    mockRunCommand.mockReturnValueOnce({
-      stdout: '',
-      stderr: '',
-      status: 0,
-    });
-
+    setupDefaultRunCommand();
+    mockReadFile.mockResolvedValueOnce(vitestJson(50));
+    mockReadFile.mockResolvedValueOnce(vitestJson(50));
     mockReadFile.mockResolvedValueOnce(
       JSON.stringify({ total: { statements: { pct: 85 } } }),
     );
@@ -246,11 +190,13 @@ describe('runTestCheck', () => {
   });
 
   it('returns fail when vitest command fails entirely', async () => {
-    mockRunCommand.mockReturnValueOnce({
-      stdout: 'not valid json',
+    mockRunCommand.mockReturnValue({
+      stdout: '',
       stderr: 'vitest not found',
       status: 1,
     });
+    // File was never written — readFile rejects, helper returns ''
+    mockReadFile.mockRejectedValue(new Error('ENOENT'));
 
     const result = await runTestCheck('/repo', null, mockConfig);
 

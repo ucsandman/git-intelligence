@@ -1,9 +1,30 @@
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import type { CheckResult } from '../types.js';
 import type { Baselines } from '../types.js';
 import type { OrganismConfig } from '../../types.js';
 import { runCommand } from '../../utils.js';
+
+async function runVitestToJsonFile(gitiPath: string): Promise<string> {
+  // Write the JSON report to a temp file instead of parsing stdout — stdout
+  // capture via execFileSync has been flaky on Windows, and a file round-trip
+  // is bulletproof.
+  const outputFile = path.join(
+    os.tmpdir(),
+    `giti-vitest-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.json`,
+  );
+  try {
+    runCommand(
+      'npx',
+      ['vitest', 'run', '--reporter=json', `--outputFile=${outputFile}`],
+      gitiPath,
+    );
+    return await fs.readFile(outputFile, 'utf-8').catch(() => '');
+  } finally {
+    await fs.unlink(outputFile).catch(() => {});
+  }
+}
 
 function countFailures(stdout: string): { total: number; failed: number; failedNames: string[] } {
   try {
@@ -41,14 +62,15 @@ export async function runTestCheck(
   const gitiPath = path.join(repoPath, 'packages', 'giti');
 
   // 1. Run tests on the current branch
-  const branchResult = runCommand('npx', ['vitest', 'run', '--reporter=json'], gitiPath);
-  const branch = countFailures(branchResult.stdout);
+  const branchJson = await runVitestToJsonFile(gitiPath);
+  const branch = countFailures(branchJson);
 
   if (branch.failed === -1) {
+    const preview = branchJson.slice(0, 300).replace(/\s+/g, ' ');
     return {
       name,
       status: 'fail',
-      message: `Test runner failed: ${branchResult.stderr || 'could not parse output'}`,
+      message: `Test runner failed: could not parse output (got ${branchJson.length} bytes; preview: ${preview || '<empty>'})`,
     };
   }
 
@@ -56,8 +78,8 @@ export async function runTestCheck(
   const currentBranch = runCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD'], repoPath).stdout.trim();
   runCommand('git', ['stash', '--include-untracked'], repoPath);
   runCommand('git', ['checkout', 'main'], repoPath);
-  const mainResult = runCommand('npx', ['vitest', 'run', '--reporter=json'], gitiPath);
-  const main = countFailures(mainResult.stdout);
+  const mainJson = await runVitestToJsonFile(gitiPath);
+  const main = countFailures(mainJson);
   runCommand('git', ['checkout', currentBranch], repoPath);
   runCommand('git', ['stash', 'pop'], repoPath);
 
