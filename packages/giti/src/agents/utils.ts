@@ -53,13 +53,19 @@ function resolveCommand(command: string): string {
 }
 
 export function runCommand(command: string, args: string[], cwd: string): { stdout: string; stderr: string; status: number } {
+  const resolved = resolveCommand(command);
+  // Node's CVE-2024-27980 mitigation rejects spawning `.cmd`/`.bat` via
+  // execFile with shell: false (throws EINVAL). On Windows we must run
+  // shims like npm.cmd / npx.cmd through a shell. All args here come from
+  // internal code, not user input, so this is safe.
+  const needsShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(resolved);
   try {
-    const stdout = execFileSync(resolveCommand(command), args, {
+    const stdout = execFileSync(resolved, args, {
       cwd,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 120_000,
-      shell: false,
+      shell: needsShell,
     });
     return { stdout, stderr: '', status: 0 };
   } catch (error: unknown) {
