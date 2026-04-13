@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "tsc --noEmit",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "provision-motor-cortex": "tsx src/scripts/provision-motor-cortex.ts"
   },
   "keywords": [
     "git",
@@ -38,6 +39,7 @@
     "@types/node": "^25.5.2",
     "@vitest/coverage-v8": "^4.1.2",
     "tsup": "^8.5.1",
+    "tsx": "^4.19.2",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"
   }

@@ -1,5 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { ImplementationContext } from './types.js';
+import {
+  clearStore,
+  computeConfigHash,
+  loadStore,
+  saveStore,
+  type ManagedAgentConfigFingerprint,
+  type StoredManagedAgent,
+} from './managed-agent-store.js';
 
 export interface AgentImplementationResult {
   success: boolean;
@@ -13,9 +21,10 @@ export interface AgentImplementationResult {
   error?: string;
 }
 
-// Cache agent and environment IDs across work items in a cycle
-let cachedAgentId: string | undefined;
-let cachedEnvironmentId: string | undefined;
+const AGENT_NAME = 'giti-motor-cortex';
+const AGENT_DESCRIPTION =
+  'Motor cortex of the giti living codebase organism. Implements focused code changes.';
+const ENVIRONMENT_NAME = 'giti-workspace';
 
 const SYSTEM_PROMPT = `You are the Motor Cortex of a living codebase organism called giti. You implement focused code changes autonomously.
 
@@ -71,47 +80,202 @@ ${context.target_files.length > 0 ? `## Target Files (start here)\n${context.tar
 Create a new git branch from main, make your changes there, run tests, and commit. Do NOT push — output the patch instead as instructed.`;
 }
 
-async function ensureAgent(client: Anthropic): Promise<string> {
-  if (cachedAgentId) return cachedAgentId;
-
+function buildAgentConfig(): ManagedAgentConfigFingerprint {
   const model = process.env['GITI_MODEL'] ?? 'claude-sonnet-4-6';
-  console.log(`[motor-cortex] Creating managed agent with model: ${model}`);
-
-  const agent = await client.beta.agents.create({
-    name: 'giti-motor-cortex',
-    description: 'Motor cortex of the giti living codebase organism. Implements focused code changes.',
-    model: { id: model },
+  return {
+    name: AGENT_NAME,
+    description: AGENT_DESCRIPTION,
+    model,
     system: SYSTEM_PROMPT,
-    tools: [{
-      type: 'agent_toolset_20260401' as const,
-      default_config: {
-        enabled: true,
-        permission_policy: { type: 'always_allow' as const },
+    tools: [
+      {
+        type: 'agent_toolset_20260401',
+        default_config: {
+          enabled: true,
+          permission_policy: { type: 'always_allow' },
+        },
       },
-    }],
-  });
-
-  cachedAgentId = agent.id;
-  console.log(`[motor-cortex] Agent created: ${agent.id}`);
-  return agent.id;
+    ],
+  };
 }
 
-async function ensureEnvironment(client: Anthropic): Promise<string> {
-  if (cachedEnvironmentId) return cachedEnvironmentId;
+function isNotFound(err: unknown): boolean {
+  return err instanceof Anthropic.NotFoundError;
+}
 
-  console.log('[motor-cortex] Creating managed environment...');
-  const env = await client.beta.environments.create({
-    name: 'giti-workspace',
+interface LiveAgent {
+  version: number;
+}
+
+async function fetchLiveAgent(client: Anthropic, agentId: string): Promise<LiveAgent | null> {
+  try {
+    const existing = await client.beta.agents.retrieve(agentId);
+    const raw = existing as unknown as Record<string, unknown>;
+    if (raw['archived_at']) return null;
+    const version = Number(raw['version']);
+    if (!Number.isFinite(version)) return null;
+    return { version };
+  } catch (err) {
+    if (isNotFound(err)) return null;
+    throw err;
+  }
+}
+
+async function environmentStillLive(client: Anthropic, environmentId: string): Promise<boolean> {
+  try {
+    await client.beta.environments.retrieve(environmentId);
+    return true;
+  } catch (err) {
+    if (isNotFound(err)) return false;
+    throw err;
+  }
+}
+
+async function createAgentFromConfig(
+  client: Anthropic,
+  cfg: ManagedAgentConfigFingerprint,
+): Promise<{ id: string; version: number }> {
+  console.log(`[motor-cortex] Creating managed agent (${cfg.model})...`);
+  const created = await client.beta.agents.create({
+    name: cfg.name,
+    description: cfg.description,
+    model: { id: cfg.model },
+    system: cfg.system,
+    tools: cfg.tools as never,
   });
+  const version = Number((created as unknown as Record<string, unknown>)['version']);
+  console.log(`[motor-cortex] Agent created: ${created.id} (v${version})`);
+  return { id: created.id, version };
+}
 
-  cachedEnvironmentId = env.id;
-  console.log(`[motor-cortex] Environment created: ${env.id}`);
-  return env.id;
+async function updateAgentFromConfig(
+  client: Anthropic,
+  agentId: string,
+  currentVersion: number,
+  cfg: ManagedAgentConfigFingerprint,
+): Promise<{ id: string; version: number }> {
+  console.log(`[motor-cortex] Config changed — updating agent ${agentId} from v${currentVersion}...`);
+  const updated = await client.beta.agents.update(agentId, {
+    version: currentVersion,
+    name: cfg.name,
+    description: cfg.description,
+    model: { id: cfg.model },
+    system: cfg.system,
+    tools: cfg.tools as never,
+  });
+  const version = Number((updated as unknown as Record<string, unknown>)['version']);
+  console.log(`[motor-cortex] Agent updated: ${agentId} (v${version})`);
+  return { id: agentId, version };
+}
+
+async function findEnvironmentByName(client: Anthropic, name: string): Promise<string | null> {
+  const page = await client.beta.environments.list();
+  const items = (page as unknown as { data?: unknown[] }).data ?? [];
+  for (const item of items) {
+    const raw = item as Record<string, unknown>;
+    if (raw['name'] === name && !raw['archived_at']) {
+      return raw['id'] as string;
+    }
+  }
+  return null;
+}
+
+async function createEnvironment(client: Anthropic): Promise<string> {
+  console.log('[motor-cortex] Creating managed environment...');
+  try {
+    const env = await client.beta.environments.create({ name: ENVIRONMENT_NAME });
+    console.log(`[motor-cortex] Environment created: ${env.id}`);
+    return env.id;
+  } catch (err) {
+    // Name collision with an existing (non-archived) env — find and reuse it.
+    if (err instanceof Anthropic.APIError && err.status === 409) {
+      console.log(`[motor-cortex] Environment name "${ENVIRONMENT_NAME}" exists — looking up existing...`);
+      const existingId = await findEnvironmentByName(client, ENVIRONMENT_NAME);
+      if (existingId) {
+        console.log(`[motor-cortex] Reusing existing environment: ${existingId}`);
+        return existingId;
+      }
+    }
+    throw err;
+  }
+}
+
+export interface ProvisionResult {
+  agentId: string;
+  agentVersion: number;
+  environmentId: string;
+  reused: boolean;
+  updated: boolean;
+}
+
+export async function provisionManagedAgent(
+  client: Anthropic,
+  repoPath: string,
+): Promise<ProvisionResult> {
+  const cfg = buildAgentConfig();
+  const configHash = computeConfigHash(cfg);
+  const stored = await loadStore(repoPath);
+  const nowIso = new Date().toISOString();
+
+  let agentId: string;
+  let agentVersion: number;
+  let environmentId: string;
+  let reused = false;
+  let updated = false;
+
+  // Agent: reuse, update, or create
+  const liveAgent = stored?.agentId ? await fetchLiveAgent(client, stored.agentId) : null;
+  if (stored?.agentId && liveAgent) {
+    if (stored.configHash === configHash) {
+      agentId = stored.agentId;
+      agentVersion = liveAgent.version;
+      reused = true;
+      console.log(`[motor-cortex] Reusing agent ${agentId} (v${agentVersion})`);
+    } else {
+      const result = await updateAgentFromConfig(client, stored.agentId, liveAgent.version, cfg);
+      agentId = result.id;
+      agentVersion = result.version;
+      updated = true;
+    }
+  } else {
+    if (stored?.agentId) {
+      console.log(`[motor-cortex] Stored agent ${stored.agentId} no longer exists — provisioning fresh`);
+    }
+    const result = await createAgentFromConfig(client, cfg);
+    agentId = result.id;
+    agentVersion = result.version;
+  }
+
+  // Environment: reuse or create
+  if (stored?.environmentId && (await environmentStillLive(client, stored.environmentId))) {
+    environmentId = stored.environmentId;
+    console.log(`[motor-cortex] Reusing environment ${environmentId}`);
+  } else {
+    if (stored?.environmentId) {
+      console.log(`[motor-cortex] Stored environment ${stored.environmentId} no longer exists — provisioning fresh`);
+    }
+    environmentId = await createEnvironment(client);
+  }
+
+  const next: StoredManagedAgent = {
+    agentId,
+    agentName: cfg.name,
+    agentVersion,
+    environmentId,
+    environmentName: ENVIRONMENT_NAME,
+    configHash,
+    model: cfg.model,
+    createdAt: stored?.createdAt ?? nowIso,
+    updatedAt: nowIso,
+  };
+  await saveStore(repoPath, next);
+
+  return { agentId, agentVersion, environmentId, reused, updated };
 }
 
 export async function implementWithAgent(
   context: ImplementationContext,
-  _repoPath: string,
+  repoPath: string,
 ): Promise<AgentImplementationResult> {
   const prompt = buildPrompt(context);
   const client = new Anthropic();
@@ -128,8 +292,7 @@ export async function implementWithAgent(
   const filesChanged: string[] = [];
 
   try {
-    const agentId = await ensureAgent(client);
-    const environmentId = await ensureEnvironment(client);
+    const { agentId, environmentId } = await provisionManagedAgent(client, repoPath);
 
     // GitHub token for repo access
     const githubToken = process.env['GITHUB_TOKEN'] ?? process.env['GH_TOKEN'];
@@ -290,8 +453,7 @@ export async function implementWithAgent(
   }
 }
 
-// Reset cached IDs (call between cycles if needed)
-export function resetManagedAgentCache(): void {
-  cachedAgentId = undefined;
-  cachedEnvironmentId = undefined;
+// Force re-provisioning on next run by discarding the persisted store.
+export async function resetManagedAgentCache(repoPath: string): Promise<void> {
+  await clearStore(repoPath);
 }
