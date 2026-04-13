@@ -246,15 +246,24 @@ export async function provisionManagedAgent(
     agentVersion = result.version;
   }
 
-  // Environment: reuse or create
+  // Environment: stored → lookup by name → create
+  // Name-lookup guards against creating duplicates when the store file is missing
+  // but an environment for this organism already exists (the API doesn't reliably
+  // enforce name uniqueness, so we can't rely on 409 alone).
   if (stored?.environmentId && (await environmentStillLive(client, stored.environmentId))) {
     environmentId = stored.environmentId;
     console.log(`[motor-cortex] Reusing environment ${environmentId}`);
   } else {
     if (stored?.environmentId) {
-      console.log(`[motor-cortex] Stored environment ${stored.environmentId} no longer exists — provisioning fresh`);
+      console.log(`[motor-cortex] Stored environment ${stored.environmentId} no longer exists — searching by name`);
     }
-    environmentId = await createEnvironment(client);
+    const byName = await findEnvironmentByName(client, ENVIRONMENT_NAME);
+    if (byName) {
+      environmentId = byName;
+      console.log(`[motor-cortex] Adopting existing "${ENVIRONMENT_NAME}" environment: ${environmentId}`);
+    } else {
+      environmentId = await createEnvironment(client);
+    }
   }
 
   const next: StoredManagedAgent = {
