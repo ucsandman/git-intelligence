@@ -50,17 +50,18 @@ export async function runImmuneReview(
     };
   }
 
-  // 4. Run all 7 checks in parallel
-  const [testResult, qualityResult, performanceResult, boundaryResult, regressionResult, dependencyResult, secretResult] =
-    await Promise.all([
-      runTestCheck(repoPath, baselines, config),
-      runQualityCheck(repoPath, baselines, config),
-      runPerformanceCheck(repoPath, config, baselines),
-      runBoundaryCheck(repoPath, branch, config),
-      runRegressionCheck(repoPath, branch, regressionContext),
-      runDependencyCheck(repoPath, branch),
-      runSecretScan(repoPath, branch),
-    ]);
+  // 4. Run checks sequentially. Parallelism here was unsafe because
+  // runTestCheck mutates the working tree (git stash + checkout main +
+  // checkout back + stash pop) while other checks read it. CPU contention
+  // between concurrent vitest + tsc runs also pushed coverage past its
+  // 120s timeout. Sequential is ~30s slower per cycle; correctness wins.
+  const testResult = await runTestCheck(repoPath, baselines, config);
+  const qualityResult = await runQualityCheck(repoPath, baselines, config);
+  const performanceResult = await runPerformanceCheck(repoPath, config, baselines);
+  const boundaryResult = await runBoundaryCheck(repoPath, branch, config);
+  const regressionResult = await runRegressionCheck(repoPath, branch, regressionContext);
+  const dependencyResult = await runDependencyCheck(repoPath, branch);
+  const secretResult = await runSecretScan(repoPath, branch);
 
   const checks = [testResult, qualityResult, performanceResult, boundaryResult, regressionResult, dependencyResult, secretResult];
 
