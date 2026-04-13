@@ -108,8 +108,9 @@ export async function runTestCheck(
     os.tmpdir(),
     `giti-vitest-cov-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.json`,
   );
+  let coverageCmdResult: { stdout: string; stderr: string; status: number };
   try {
-    runCommand(
+    coverageCmdResult = runCommand(
       'npx',
       ['vitest', 'run', '--coverage', '--reporter=json', `--outputFile=${coverageStdoutFile}`],
       gitiPath,
@@ -128,7 +129,9 @@ export async function runTestCheck(
     };
     coveragePercent = coverageData.total?.statements?.pct ?? 0;
   } catch (err) {
-    coverageError = err instanceof Error ? err.message : String(err);
+    const fileErr = err instanceof Error ? err.message : String(err);
+    const stderrSnip = coverageCmdResult.stderr.slice(0, 400).replace(/\s+/g, ' ').trim();
+    coverageError = `vitest exit=${coverageCmdResult.status}; readFile: ${fileErr}${stderrSnip ? `; stderr: ${stderrSnip}` : ''}`;
     coveragePercent = 0;
   }
 
