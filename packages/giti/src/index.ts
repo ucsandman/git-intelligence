@@ -1,8 +1,7 @@
-import { config } from 'dotenv';
-import { resolve } from 'node:path';
+import { loadEnv } from './env-loader.js';
 
-// Load .env from repo root (where giti is run)
-config({ path: resolve(process.cwd(), '.env') });
+// Load .env by walking up from CWD so `giti` works from any subdirectory.
+loadEnv();
 
 import { Command } from 'commander';
 import { executePulse } from './commands/pulse.js';

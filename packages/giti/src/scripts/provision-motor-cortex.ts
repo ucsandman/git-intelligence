@@ -24,12 +24,16 @@ process.on('unhandledRejection', (reason) => {
 
 import Anthropic from '@anthropic-ai/sdk';
 import path from 'node:path';
+import { loadEnv } from '../env-loader.js';
 import { provisionManagedAgent } from '../agents/motor-cortex/implementer.js';
 import { storeFilePath } from '../agents/motor-cortex/managed-agent-store.js';
 
 async function main() {
+  const env = loadEnv();
+  if (env.path) console.log(`Loaded env from: ${env.path}`);
+
   if (!process.env['ANTHROPIC_API_KEY']) {
-    console.error('ANTHROPIC_API_KEY is required');
+    console.error('ANTHROPIC_API_KEY is required (set it in .env at the repo root)');
     process.exit(1);
   }
 
