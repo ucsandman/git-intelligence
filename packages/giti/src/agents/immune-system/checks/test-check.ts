@@ -99,10 +99,27 @@ export async function runTestCheck(
     // Not worse than main — pass with note
   }
 
-  // 3. Run vitest with coverage and read coverage summary
-  runCommand('npx', ['vitest', 'run', '--coverage', '--reporter=json'], gitiPath);
+  // 3. Run vitest with coverage. Route the test-reporter JSON to a temp
+  // file so a large stdout doesn't trip execFileSync's 1MB maxBuffer on
+  // Windows (shell: true + big JSON has left coverage half-written).
+  // Coverage itself lands in coverage/coverage-summary.json via the
+  // json-summary reporter configured in vitest.config.ts.
+  const coverageStdoutFile = path.join(
+    os.tmpdir(),
+    `giti-vitest-cov-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.json`,
+  );
+  try {
+    runCommand(
+      'npx',
+      ['vitest', 'run', '--coverage', '--reporter=json', `--outputFile=${coverageStdoutFile}`],
+      gitiPath,
+    );
+  } finally {
+    await fs.unlink(coverageStdoutFile).catch(() => {});
+  }
 
   let coveragePercent = 0;
+  let coverageError = '';
   try {
     const coveragePath = path.join(gitiPath, 'coverage', 'coverage-summary.json');
     const coverageRaw = await fs.readFile(coveragePath, 'utf-8');
@@ -110,8 +127,8 @@ export async function runTestCheck(
       total?: { statements?: { pct?: number } };
     };
     coveragePercent = coverageData.total?.statements?.pct ?? 0;
-  } catch {
-    // If coverage file can't be read, treat as 0
+  } catch (err) {
+    coverageError = err instanceof Error ? err.message : String(err);
     coveragePercent = 0;
   }
 
@@ -119,10 +136,11 @@ export async function runTestCheck(
 
   // 4. If coverage below floor, fail
   if (coveragePercent < floor) {
+    const detail = coverageError ? ` (${coverageError})` : '';
     return {
       name,
       status: 'fail',
-      message: `Coverage ${coveragePercent}% below floor ${floor}%`,
+      message: `Coverage ${coveragePercent}% below floor ${floor}%${detail}`,
     };
   }
 
