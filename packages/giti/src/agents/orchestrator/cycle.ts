@@ -265,8 +265,11 @@ export async function runLifecycleCycle(options: CycleOptions): Promise<CycleRes
       }
     }
 
-    // Track consecutive failures
-    if (mergedCount === 0 && buildResults.length > 0) {
+    // Track consecutive failures — only the motor cortex genuinely breaking
+    // counts (status:'failed'). An immune-system reject is the safety layer
+    // doing its job on a valid build, not a runaway signal.
+    const motorCortexFailures = buildResults.filter(r => r.status === 'failed').length;
+    if (motorCortexFailures > 0) {
       await safety.incrementFailures(repoPath);
     } else if (mergedCount > 0) {
       await safety.resetFailures(repoPath);

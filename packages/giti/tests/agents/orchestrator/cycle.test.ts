@@ -283,7 +283,28 @@ describe('runLifecycleCycle', () => {
     expect(result.changes_merged).toBe(0);
     expect(result.changes_approved).toBe(0);
     expect(result.outcome).toBe('no-changes');
+    // An immune reject on a successful motor-cortex build is the safety
+    // layer working, not a runaway signal. Do not increment the counter.
+    expect(mockSafety.incrementFailures).not.toHaveBeenCalled();
+  });
+
+  it('motor cortex returns status:failed: increments consecutive failures', async () => {
+    const report = makeStateReport();
+    const items = [makeWorkItem('w1', 'Broken build')];
+    const plan = makeCyclePlan(items);
+
+    mockSensory.runSensoryCortex.mockResolvedValue({ report, reportPath: '/tmp/report.json' });
+    mockPrefrontal.runPrefrontalCortex.mockResolvedValue(plan);
+    mockMotor.runMotorCortex.mockResolvedValueOnce(
+      makeBuildResult('w1', 'organism/motor/broken-build', 'failed', 250),
+    );
+
+    const result = await runLifecycleCycle({ repoPath: '/repo', supervised: false });
+
+    expect(result.outcome).toBe('no-changes');
     expect(mockSafety.incrementFailures).toHaveBeenCalled();
+    // Immune review should not run on a failed build
+    expect(mockImmune.runImmuneReview).not.toHaveBeenCalled();
   });
 
   it('kill switch active at start: returns aborted immediately', async () => {
