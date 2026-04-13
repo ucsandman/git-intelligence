@@ -1,4 +1,4 @@
-import { loadOrganismConfig, readJsonFile, writeJsonFile, ensureOrganismDir, getOrganismPath } from '../utils.js';
+import { loadOrganismConfig, readJsonFile, writeJsonFile, ensureOrganismDir, getOrganismPath, runCommand } from '../utils.js';
 import { readBaselines } from './baselines.js';
 import { runTestCheck } from './checks/test-check.js';
 import { runQualityCheck } from './checks/quality-check.js';
@@ -50,18 +50,35 @@ export async function runImmuneReview(
     };
   }
 
-  // 4. Run checks sequentially. Parallelism here was unsafe because
+  // 4. Check out the target branch so file-reading checks see the patch
+  // under review. Without this, every check runs against whatever branch
+  // the caller happened to be on (usually main) and never sees the motor
+  // cortex's changes at all. Restore the original branch in `finally`.
+  const initialBranch = runCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD'], repoPath).stdout.trim();
+  const stashResult = runCommand('git', ['stash', '--include-untracked'], repoPath);
+  const didStash = stashResult.status === 0 && !stashResult.stdout.includes('No local changes');
+  runCommand('git', ['checkout', branch], repoPath);
+
+  // 5. Run checks sequentially. Parallelism was unsafe because
   // runTestCheck mutates the working tree (git stash + checkout main +
   // checkout back + stash pop) while other checks read it. CPU contention
   // between concurrent vitest + tsc runs also pushed coverage past its
   // 120s timeout. Sequential is ~30s slower per cycle; correctness wins.
-  const testResult = await runTestCheck(repoPath, baselines, config);
-  const qualityResult = await runQualityCheck(repoPath, baselines, config);
-  const performanceResult = await runPerformanceCheck(repoPath, config, baselines);
-  const boundaryResult = await runBoundaryCheck(repoPath, branch, config);
-  const regressionResult = await runRegressionCheck(repoPath, branch, regressionContext);
-  const dependencyResult = await runDependencyCheck(repoPath, branch);
-  const secretResult = await runSecretScan(repoPath, branch);
+  let testResult, qualityResult, performanceResult, boundaryResult, regressionResult, dependencyResult, secretResult;
+  try {
+    testResult = await runTestCheck(repoPath, baselines, config);
+    qualityResult = await runQualityCheck(repoPath, baselines, config);
+    performanceResult = await runPerformanceCheck(repoPath, config, baselines);
+    boundaryResult = await runBoundaryCheck(repoPath, branch, config);
+    regressionResult = await runRegressionCheck(repoPath, branch, regressionContext);
+    dependencyResult = await runDependencyCheck(repoPath, branch);
+    secretResult = await runSecretScan(repoPath, branch);
+  } finally {
+    runCommand('git', ['checkout', initialBranch], repoPath);
+    if (didStash) {
+      runCommand('git', ['stash', 'pop'], repoPath);
+    }
+  }
 
   const checks = [testResult, qualityResult, performanceResult, boundaryResult, regressionResult, dependencyResult, secretResult];
 
