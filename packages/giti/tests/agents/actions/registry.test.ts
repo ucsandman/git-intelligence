@@ -47,6 +47,16 @@ function makeTemplate(id: string, status: 'active' | 'deprecated' | 'disabled' =
 }
 
 describe('action registry', () => {
+  it('includes the built-in self-healing templates', () => {
+    expect(listActionTemplates().map((template) => template.id)).toEqual(
+      expect.arrayContaining([
+        'regression-cluster-draft-stabilization-plan',
+        'generated-output-pollution-audit',
+        'command-output-evidence-capture',
+      ]),
+    );
+  });
+
   it('returns valid active and deprecated templates but excludes disabled ones', () => {
     const templates = listActionTemplates([
       makeTemplate('active-action', 'active'),

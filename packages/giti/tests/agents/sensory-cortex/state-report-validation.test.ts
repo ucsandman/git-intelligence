@@ -1,4 +1,8 @@
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { isValidStateReport } from '../../../src/agents/sensory-cortex/index.js';
+import { scanCodebase } from '../../../src/agents/sensory-cortex/index.js';
 import type { StateReport } from '../../../src/agents/sensory-cortex/types.js';
 
 function makeValidReport(overrides: Partial<StateReport> = {}): StateReport {
@@ -165,5 +169,49 @@ describe('isValidStateReport', () => {
       quality: { ...r.quality, test_coverage_percent: '85' as unknown as number },
     };
     expect(isValidStateReport(broken)).toBe(false);
+  });
+});
+
+describe('scanCodebase', () => {
+  let tmp: string;
+
+  beforeEach(async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'giti-scan-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmp, { recursive: true, force: true });
+  });
+
+  it('skips generated build and cache directories from codebase metrics', async () => {
+    const generatedContent = Array.from({ length: 500 }, (_, i) => `generated line ${i}`).join('\n');
+    const generatedDirs = [
+      '.next/server',
+      '.organism/state-reports',
+      '.git/objects',
+      'dist',
+      'coverage',
+      'node_modules/pkg',
+      'build',
+      '.cache',
+    ];
+
+    await fs.mkdir(path.join(tmp, 'src'), { recursive: true });
+    await fs.writeFile(path.join(tmp, 'src', 'app.ts'), 'line 1\nline 2', 'utf-8');
+
+    await Promise.all(
+      generatedDirs.map(async (dir) => {
+        const fullDir = path.join(tmp, dir);
+        await fs.mkdir(fullDir, { recursive: true });
+        await fs.writeFile(path.join(fullDir, 'generated.js'), generatedContent, 'utf-8');
+      }),
+    );
+
+    const result = await scanCodebase(tmp);
+
+    expect(result.total_files).toBe(1);
+    expect(result.total_lines).toBe(2);
+    expect(result.largest_files).toEqual([{ path: path.join('src', 'app.ts'), lines: 2 }]);
+    expect(result.file_type_distribution).toEqual({ '.ts': 1 });
   });
 });

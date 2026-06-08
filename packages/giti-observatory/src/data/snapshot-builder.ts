@@ -6,6 +6,9 @@ import type {
   OrganismEventDigest,
   DispatchDigest,
   CyclePhase,
+  HealingActionDigest,
+  HealingActionStatus,
+  HealingArtifactDigest,
 } from '../types/snapshot';
 
 async function readJson<T>(filePath: string): Promise<T | null> {
@@ -113,6 +116,21 @@ interface StateReport {
   };
 }
 
+interface ActionIndexEntry {
+  id: string;
+}
+
+interface ActionInstance {
+  id: string;
+  template_id: string;
+  status: HealingActionStatus;
+  started_at?: string;
+  completed_at?: string;
+  step_results?: Array<{
+    output?: unknown;
+  }>;
+}
+
 function detectCurrentState(
   _organismDir: string,
   hasKillSwitch: boolean,
@@ -176,6 +194,87 @@ function computeVitals(
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isActionInstance(value: unknown): value is ActionInstance {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    typeof value.template_id === 'string' &&
+    typeof value.status === 'string'
+  );
+}
+
+async function readActionInstances(organismDir: string): Promise<ActionInstance[]> {
+  const actionsDir = join(organismDir, 'actions');
+  const index = await readJson<ActionIndexEntry[]>(join(actionsDir, 'index.json'));
+  const entries = Array.isArray(index) ? index : [];
+
+  if (entries.length > 0) {
+    const loaded = await Promise.all(
+      entries.map((entry) =>
+        readJson<unknown>(join(actionsDir, 'instances', `${entry.id}.json`)),
+      ),
+    );
+    return loaded.filter(isActionInstance);
+  }
+
+  const looseInstances = await readJsonDir<unknown>(join(actionsDir, 'instances'));
+  return looseInstances.filter(isActionInstance);
+}
+
+function getActionTimestamp(instance: ActionInstance): string {
+  return instance.completed_at ?? instance.started_at ?? new Date(0).toISOString();
+}
+
+function extractArtifactPaths(instance: ActionInstance): string[] {
+  const paths = new Set<string>();
+  for (const result of instance.step_results ?? []) {
+    if (isRecord(result.output) && typeof result.output.path === 'string') {
+      paths.add(result.output.path);
+    }
+  }
+  return Array.from(paths).sort();
+}
+
+function toHealingAction(instance: ActionInstance): HealingActionDigest {
+  return {
+    id: instance.id,
+    template_id: instance.template_id,
+    status: instance.status,
+    updated_at: getActionTimestamp(instance),
+    artifact_paths: extractArtifactPaths(instance),
+  };
+}
+
+function buildHealing(instances: ActionInstance[]): ObservatorySnapshot['healing'] {
+  const recentActions = instances
+    .map(toHealingAction)
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    .slice(0, 8);
+  const activeAction =
+    recentActions.find((action) =>
+      ['running', 'approved', 'planned'].includes(action.status),
+    ) ?? null;
+  const recentArtifacts: HealingArtifactDigest[] = recentActions.flatMap((action) =>
+    action.artifact_paths.map((artifactPath) => ({
+      path: artifactPath,
+      action_id: action.id,
+      template_id: action.template_id,
+      status: action.status,
+    })),
+  ).slice(0, 8);
+
+  return {
+    total_actions: instances.length,
+    active_action: activeAction,
+    recent_actions: recentActions,
+    recent_artifacts: recentArtifacts,
+  };
+}
+
 export async function buildSnapshot(
   repoPath: string,
 ): Promise<ObservatorySnapshot> {
@@ -207,6 +306,7 @@ export async function buildSnapshot(
   const dispatches = await readJsonDir<DispatchDigest>(
     join(organismDir, 'content', 'dispatches'),
   );
+  const actionInstances = await readActionInstances(organismDir);
 
   // Compute vitals from latest state report
   const vitals = computeVitals(stateReports, kb, cycleCount);
@@ -300,6 +400,7 @@ export async function buildSnapshot(
     dispatches,
     milestones,
     recent_events: recentEvents,
+    healing: buildHealing(actionInstances),
     knowledge: {
       total_lessons: kb?.lessons.length ?? 0,
       fragile_files: kb?.patterns.fragile_files.map((f) => f.file) ?? [],

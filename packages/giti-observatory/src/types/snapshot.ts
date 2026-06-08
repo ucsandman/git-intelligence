@@ -26,6 +26,7 @@ export interface ObservatorySnapshot {
   dispatches: DispatchDigest[];
   milestones: string[];
   recent_events: OrganismEventDigest[];
+  healing: HealingDigest;
   knowledge: {
     total_lessons: number;
     fragile_files: string[];
@@ -62,6 +63,36 @@ export interface OrganismEventDigest {
   type: string;
   agent: string;
   summary: string;
+}
+
+export type HealingActionStatus =
+  | 'planned'
+  | 'approved'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'rejected';
+
+export interface HealingActionDigest {
+  id: string;
+  template_id: string;
+  status: HealingActionStatus;
+  updated_at: string;
+  artifact_paths: string[];
+}
+
+export interface HealingArtifactDigest {
+  path: string;
+  action_id: string;
+  template_id: string;
+  status: HealingActionStatus;
+}
+
+export interface HealingDigest {
+  total_actions: number;
+  active_action: HealingActionDigest | null;
+  recent_actions: HealingActionDigest[];
+  recent_artifacts: HealingArtifactDigest[];
 }
 
 export interface DispatchDigest {

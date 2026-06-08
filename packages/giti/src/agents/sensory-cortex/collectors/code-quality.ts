@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { isIgnoredSourceDirectory } from '../source-scope.js';
 
 interface CodeQualityResult {
   test_file_count: number;
@@ -9,7 +10,6 @@ interface CodeQualityResult {
   functions_exceeding_complexity: string[];
 }
 
-const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'coverage', '.git']);
 const SOURCE_EXTENSIONS = new Set(['.ts', '.js', '.tsx', '.jsx']);
 
 export async function collectCodeQuality(
@@ -77,7 +77,7 @@ async function walkSourceFiles(dir: string): Promise<string[]> {
   const entries = await fs.readdir(dir, { withFileTypes: true });
 
   for (const entry of entries) {
-    if (EXCLUDED_DIRS.has(entry.name)) continue;
+    if (isIgnoredSourceDirectory(entry.name)) continue;
 
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {

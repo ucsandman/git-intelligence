@@ -8,6 +8,7 @@ import { createRemoteProvider } from '@/data/remote-provider';
 import { VitalsStrip } from '@/components/vitals/VitalsStrip';
 import { GrowthJournal } from '@/components/journal/GrowthJournal';
 import { IntroOverlay } from '@/components/IntroOverlay';
+import { HealingJournal } from '@/components/healing/HealingJournal';
 
 const TerrariumScene = dynamic(
   () =>
@@ -56,6 +57,7 @@ export default function ObservatoryPage() {
 
         {/* Layer 3: Growth Journal */}
         <div className="bg-terrarium-surface">
+          <HealingJournal />
           <GrowthJournal onShowInTerrarium={setTimelineCycle} />
         </div>
       </main>

@@ -28,6 +28,38 @@ const mockRunCommand = vi.mocked(runCommand);
 const mockGetApiUsage = vi.mocked(getApiUsage);
 const mockIsInCooldown = vi.mocked(isInCooldown);
 
+const INTEGRATION_ENV_KEYS = [
+  'GITHUB_TOKEN',
+  'GH_TOKEN',
+  'DASHCLAW_URL',
+  'DASHCLAW_API_KEY',
+  'OPENCLAW_API_KEY',
+  'ANTHROPIC_API_KEY',
+] as const;
+
+async function withIntegrationEnvCleared<T>(run: () => Promise<T>): Promise<T> {
+  const previous = new Map<string, string | undefined>(
+    INTEGRATION_ENV_KEYS.map((key) => [key, process.env[key]]),
+  );
+
+  for (const key of INTEGRATION_ENV_KEYS) {
+    delete process.env[key];
+  }
+
+  try {
+    return await run();
+  } finally {
+    for (const key of INTEGRATION_ENV_KEYS) {
+      const value = previous.get(key);
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
 function makeContext(): ActionPlanningContext {
   return {
     repo_path: '/repo',
@@ -280,7 +312,9 @@ describe('loadActionPlanningContext', () => {
       budget: 2000,
     });
 
-    const context = await loadActionPlanningContext('/repo', makeStateReport());
+    const context = await withIntegrationEnvCleared(() =>
+      loadActionPlanningContext('/repo', makeStateReport()),
+    );
 
     expect(context.repo_path).toBe('/repo');
     expect(context.state_report).toEqual(makeStateReport());

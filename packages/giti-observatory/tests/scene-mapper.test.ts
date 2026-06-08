@@ -41,6 +41,12 @@ function makeSnapshot(
     dispatches: overrides.dispatches ?? [],
     milestones: overrides.milestones ?? [],
     recent_events: overrides.recent_events ?? [],
+    healing: overrides.healing ?? {
+      total_actions: 0,
+      active_action: null,
+      recent_actions: [],
+      recent_artifacts: [],
+    },
     knowledge: {
       total_lessons: 3,
       fragile_files: [],
@@ -146,6 +152,32 @@ describe('mapSnapshotToScene', () => {
       }),
     );
     expect(scene.environment.flora.length).toBe(3); // 2 + 1 merged changes
+  });
+
+  it('uses active healing activity to affect weather when present', () => {
+    const scene = mapSnapshotToScene(
+      makeSnapshot({
+        healing: {
+          total_actions: 1,
+          active_action: {
+            id: 'action-running',
+            template_id: 'command-output-evidence-capture',
+            status: 'running',
+          },
+          recent_actions: [
+            {
+              id: 'action-running',
+              template_id: 'command-output-evidence-capture',
+              status: 'running',
+              updated_at: '2026-04-08T12:00:00Z',
+            },
+          ],
+          recent_artifacts: [],
+        },
+      }),
+    );
+
+    expect(scene.environment.weather).toBe('overcast');
   });
 
   it('derives personality from knowledge patterns', () => {

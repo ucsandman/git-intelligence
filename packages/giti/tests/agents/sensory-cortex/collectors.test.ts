@@ -1,6 +1,5 @@
 /// <reference types="node" />
 import type { SimpleGit, LogResult, BranchSummary, BranchSummaryBranch } from 'simple-git';
-import path from 'node:path';
 
 // ── git-stats mocks ──────────────────────────────────────────────────
 function makeMockGit(overrides: Partial<SimpleGit> = {}): SimpleGit {
@@ -568,6 +567,44 @@ describe('collectCodeQuality', () => {
 
     const result = await collectCodeQuality('/repo', 300, 15);
     expect(result.source_file_count).toBe(2);
+  });
+
+  it('skips generated build and runtime directories when collecting source quality', async () => {
+    const generatedContent = Array.from({ length: 500 }, (_, i) => `if (flag${i}) {}`).join('\n');
+
+    mockReaddir.mockImplementation(async (dir: string) => {
+      const normalized = dir.replace(/\\/g, '/');
+      if (normalized === '/repo') {
+        return [
+          makeDirent('src', true),
+          makeDirent('.next', true),
+          makeDirent('.organism', true),
+          makeDirent('.git', true),
+          makeDirent('dist', true),
+          makeDirent('coverage', true),
+          makeDirent('node_modules', true),
+          makeDirent('build', true),
+        ];
+      }
+      if (normalized === '/repo/src') {
+        return [makeDirent('app.ts', false)];
+      }
+      return [makeDirent('generated.ts', false)];
+    });
+    mockReadFile.mockImplementation(async (file: string) => {
+      const normalized = file.replace(/\\/g, '/');
+      if (normalized === '/repo/src/app.ts') return 'export const app = 1;\n';
+      return generatedContent;
+    });
+
+    const result = await collectCodeQuality('/repo', 100, 3);
+
+    expect(result.source_file_count).toBe(1);
+    expect(result.files_exceeding_length_limit).toEqual([]);
+    expect(result.functions_exceeding_complexity).toEqual([]);
+    expect(
+      mockReaddir.mock.calls.map(([dir]) => String(dir).replace(/\\/g, '/')),
+    ).toEqual(['/repo', '/repo/src']);
   });
 });
 

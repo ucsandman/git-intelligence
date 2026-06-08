@@ -19,6 +19,8 @@ import { executeSimulate } from './cli/simulate.js';
 import { executeGrow } from './cli/grow.js';
 import { executeDispatch } from './cli/dispatch.js';
 import { executeObserve } from './cli/observe.js';
+import { executeDoctor } from './cli/doctor.js';
+import { executeActions } from './cli/actions.js';
 
 process.on('unhandledRejection', (reason, _promise) => {
   console.error('Unhandled Rejection:', reason);
@@ -77,6 +79,25 @@ program
   .option('--path <dir>', 'Analyze a different repo')
   .action(async (options: { json?: boolean; path?: string }) => {
     await executeSense(options);
+  });
+
+program
+  .command('doctor')
+  .description('Diagnose organism health and recommend the next safe action')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .action(async (options: { json?: boolean; path?: string }) => {
+    await executeDoctor(options);
+  });
+
+program
+  .command('actions <subcommand> [id]')
+  .description('Inspect declarative action history and artifacts')
+  .option('--json', 'Output raw JSON')
+  .option('--path <dir>', 'Analyze a different repo')
+  .option('--limit <n>', 'Number of recent action instances to list', '10')
+  .action(async (subcommand: string, id: string | undefined, options: { json?: boolean; path?: string; limit?: string }) => {
+    await executeActions(subcommand, id, options);
   });
 
 program

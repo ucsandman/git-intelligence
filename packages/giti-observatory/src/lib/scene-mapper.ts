@@ -27,6 +27,11 @@ function deriveCreatureMood(snapshot: ObservatorySnapshot): CreatureMood {
 }
 
 function deriveWeather(snapshot: ObservatorySnapshot): WeatherType {
+  if (snapshot.healing.active_action) return 'overcast';
+  if (snapshot.healing.recent_actions.some((action) => action.status === 'failed')) {
+    return 'storm';
+  }
+
   const recent = snapshot.history.slice(-5);
   const regressions = recent.filter((c) => c.outcome === 'regression').length;
   if (regressions >= 2) return 'fog';

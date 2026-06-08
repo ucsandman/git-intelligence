@@ -143,6 +143,17 @@ Growth:       none detected
 
 State reports accumulate in `.organism/state-reports/` for trend analysis.
 
+#### `giti doctor`
+
+Inspect the latest organism state without writing files. The doctor explains current health, the top signals, safety gates, and the next safe command.
+
+```bash
+giti doctor
+giti doctor --json
+```
+
+Use this before a lifecycle run when you want to know what the organism sees and what it is likely to do next.
+
 #### `giti review <branch>`
 
 Run the Immune System — an adversarial review of a branch against main. Checks tests, quality, performance, boundaries, regressions, and dependencies.
@@ -180,6 +191,19 @@ Work items are prioritized in tiers:
 5. **New growth** — new capabilities
 
 Planning now also attaches additive `action_recommendations` for declarative workflows that are eligible in the current organism state. These recommendations do not replace normal work-item planning.
+
+#### `giti actions <subcommand>`
+
+Inspect declarative action history and artifacts without mutating `.organism/` state.
+
+```bash
+giti actions list
+giti actions show <id>
+giti actions list --json
+giti actions show <id> --json
+```
+
+Use this when you want to see what the organism tried, why it ran, whether it succeeded, and which `.organism/actions/artifacts/` files were produced.
 
 #### `giti build [item-id]`
 
@@ -350,6 +374,7 @@ giti observatory status                       # Show observatory config
 The terrarium features:
 - **A living creature** — translucent bioluminescent organism with visible internal organs (one per agent), cursor tracking, mood states driven by real data
 - **An ecosystem** — flora grows from merged changes, spores drift for growth proposals, weather reflects trajectory, energy pool shows token budget
+- **A self-healing lane** — recent declarative actions, active repair attempts, outcomes, and linked artifacts from `.organism/actions/`
 - **A growth journal** — expandable cycle cards showing agent activity (what each agent did and why), filter by outcome type
 - **Real-time updates** — SSE connection to `.organism/` watches for live cycle activity
 

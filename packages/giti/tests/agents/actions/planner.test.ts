@@ -37,6 +37,8 @@ import {
   planActions,
   scoreActionCandidate,
 } from '../../../src/agents/actions/planner.js';
+import { commandOutputEvidenceCapture } from '../../../src/agents/actions/builtins/command-output-evidence-capture.js';
+import { generatedOutputPollutionAudit } from '../../../src/agents/actions/builtins/generated-output-pollution-audit.js';
 import { runPrefrontalCortex } from '../../../src/agents/prefrontal-cortex/index.js';
 import { loadBacklog, saveCyclePlan } from '../../../src/agents/prefrontal-cortex/backlog.js';
 import {
@@ -249,6 +251,34 @@ describe('planner', () => {
     );
 
     expect(higher).toBeGreaterThan(lower);
+  });
+
+  it('ranks new healing templates when matching state is supplied', async () => {
+    const matchingState = {
+      ...makeStateReport(),
+      quality: {
+        ...makeStateReport().quality,
+        lint_error_count: 4,
+      },
+      codebase: {
+        ...makeStateReport().codebase,
+        avg_file_length: 420,
+      },
+    };
+
+    const results = await planActions('/repo', matchingState, {
+      templates: [commandOutputEvidenceCapture, generatedOutputPollutionAudit],
+      context: {
+        ...makeContext(),
+        state_report: matchingState,
+      },
+    });
+
+    expect(results.map((result) => result.template_id)).toEqual([
+      'generated-output-pollution-audit',
+      'command-output-evidence-capture',
+    ]);
+    expect(results[0]?.score).toBeGreaterThan(results[1]?.score ?? 0);
   });
 });
 

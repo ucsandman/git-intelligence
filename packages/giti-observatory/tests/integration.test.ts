@@ -36,6 +36,22 @@ beforeEach(async () => {
   });
 
   await writeJson(join(ORGANISM_DIR, 'cycle-counter.json'), { count: 25 });
+  await writeJson(join(ORGANISM_DIR, 'state-reports', 'cycle-1.json'), {
+    timestamp: '2026-03-01T00:00:00Z',
+    quality: {
+      test_coverage_percent: 82,
+      lint_error_count: 0,
+    },
+    performance: {},
+    dependencies: {
+      total_count: 10,
+      outdated_count: 1,
+      vulnerable_count: 0,
+    },
+    git: {
+      commits_last_7d: 4,
+    },
+  });
   await writeJson(join(ORGANISM_DIR, 'knowledge-base.json'), {
     created: '2026-01-01T00:00:00Z',
     last_updated: '2026-04-08T00:00:00Z',

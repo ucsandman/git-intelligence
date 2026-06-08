@@ -29,7 +29,8 @@ The current release is intentionally narrow:
 - typed predicate evaluation for planning and gating
 - file-backed action history under `.organism/actions/`
 - immune-system policy review before side effects
-- one end-to-end built-in action: `regression-cluster-draft-stabilization-plan`
+- built-in actions for regression stabilization, generated-output pollution audit, and command-output evidence capture
+- read-only inspection through `giti actions list` and `giti actions show <id>`
 
 That built-in action does the following:
 
@@ -80,7 +81,7 @@ Explicitly not supported yet:
 - user-authored runtime code
 - GitHub mutation steps through the action engine
 - medium-risk or high-risk action execution in the lifecycle by default
-- public CLI management commands for actions
+- mutation-oriented public action management commands
 
 ## Runtime Files
 
@@ -94,6 +95,17 @@ Current layout:
 
 The first built-in action also records related events and lessons through the existing memory system in `.organism/knowledge-base.json`.
 
+Inspect history without mutating it:
+
+```bash
+giti actions list
+giti actions show <id>
+giti actions list --json
+giti actions show <id> --json
+```
+
+`list` shows recent action instances with status, risk, timestamps, and artifact paths. `show` expands one action with step results, failure reason, and success criteria.
+
 ## Key Modules
 
 Core implementation lives in:
@@ -104,6 +116,7 @@ Core implementation lives in:
 - [`packages/giti/src/agents/actions/runner.ts`](../packages/giti/src/agents/actions/runner.ts)
 - [`packages/giti/src/agents/actions/history.ts`](../packages/giti/src/agents/actions/history.ts)
 - [`packages/giti/src/agents/actions/builtins/regression-cluster-draft-stabilization-plan.ts`](../packages/giti/src/agents/actions/builtins/regression-cluster-draft-stabilization-plan.ts)
+- [`packages/giti/src/cli/actions.ts`](../packages/giti/src/cli/actions.ts)
 - [`packages/giti/src/agents/orchestrator/cycle.ts`](../packages/giti/src/agents/orchestrator/cycle.ts)
 - [`packages/giti/src/agents/immune-system/index.ts`](../packages/giti/src/agents/immune-system/index.ts)
 
@@ -131,5 +144,5 @@ Reasonable next steps:
 - richer planner scoring from action outcome history
 - more built-in actions
 - medium-risk actions behind stronger approval policy
-- public inspection/debugging commands for action instances
+- richer filtering for public action inspection commands
 - curated human-authored templates once the internal model stabilizes

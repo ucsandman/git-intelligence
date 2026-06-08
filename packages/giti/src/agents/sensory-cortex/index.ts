@@ -8,17 +8,19 @@ import { collectCodeQuality } from './collectors/code-quality.js';
 import { collectDependencyHealth } from './collectors/dependency-health.js';
 import { collectPerformance } from './collectors/performance.js';
 import { detectTrends, detectAnomalies } from './analyzers/trend-detector.js';
+import { isIgnoredSourceDirectory } from './source-scope.js';
+import { isValidStateReport } from './state-report-schema.js';
 import type { StateReport } from './types.js';
 
-const REPORTS_SUBDIR = 'state-reports';
+export { isValidStateReport } from './state-report-schema.js';
 
-const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'coverage', '.git', '.organism']);
+const REPORTS_SUBDIR = 'state-reports';
 
 /**
  * Walk the filesystem to gather codebase-level statistics:
  * total files, total lines, largest files, and file type distribution.
  */
-async function scanCodebase(repoPath: string): Promise<StateReport['codebase']> {
+export async function scanCodebase(repoPath: string): Promise<StateReport['codebase']> {
   const files: Array<{ relativePath: string; lines: number; ext: string }> = [];
   await walkAll(repoPath, repoPath, files);
 
@@ -61,11 +63,7 @@ async function walkAll(
   }
 
   for (const entry of entries) {
-    if (entry.name.startsWith('.') && entry.name !== '.') {
-      // Skip hidden dirs like .git, .organism, but let walkAll handle EXCLUDED_DIRS
-      if (entry.isDirectory()) continue;
-    }
-    if (EXCLUDED_DIRS.has(entry.name)) continue;
+    if (isIgnoredSourceDirectory(entry.name)) continue;
 
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
@@ -85,45 +83,6 @@ async function walkAll(
       }
     }
   }
-}
-
-/**
- * Type guard: true if `value` has the nested shape that `detectTrends` reads.
- *
- * giti's `.organism/state-reports/` directory can contain reports written by a
- * different organism (e.g. DashClaw's Python sensory cortex writes a different
- * schema to the same path). Loading those into `detectTrends` crashes with
- * "Cannot read properties of undefined (reading 'test_coverage_percent')"
- * because the extractors assume giti's StateReport shape.
- *
- * This guard validates only the paths that trend detection actually touches —
- * `quality.test_coverage_percent`, `quality.lint_error_count`,
- * `performance.{pulse,hotspots,ghosts}_execution_ms`, and `codebase.total_lines`
- * — so foreign reports are skipped silently and giti sense works cleanly in
- * repos governed by other organisms.
- */
-export function isValidStateReport(value: unknown): value is StateReport {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const r = value as Record<string, unknown>;
-
-  if (typeof r.timestamp !== 'string') return false;
-
-  const requiredNumbers: Array<[keyof StateReport, string]> = [
-    ['quality', 'test_coverage_percent'],
-    ['quality', 'lint_error_count'],
-    ['performance', 'pulse_execution_ms'],
-    ['performance', 'hotspots_execution_ms'],
-    ['performance', 'ghosts_execution_ms'],
-    ['codebase', 'total_lines'],
-  ];
-
-  for (const [parentKey, fieldKey] of requiredNumbers) {
-    const parent = r[parentKey];
-    if (!parent || typeof parent !== 'object') return false;
-    if (typeof (parent as Record<string, unknown>)[fieldKey] !== 'number') return false;
-  }
-
-  return true;
 }
 
 /**

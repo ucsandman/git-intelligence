@@ -15,6 +15,7 @@ beforeEach(async () => {
   await mkdir(join(ORGANISM_DIR, 'content', 'dispatches'), { recursive: true });
   await mkdir(join(ORGANISM_DIR, 'backlog'), { recursive: true });
   await mkdir(join(ORGANISM_DIR, 'reviews'), { recursive: true });
+  await mkdir(join(ORGANISM_DIR, 'actions', 'instances'), { recursive: true });
 
   // organism.json at repo root
   await writeJson(join(TEST_DIR, 'organism.json'), {
@@ -81,6 +82,78 @@ describe('buildSnapshot', () => {
     expect(snapshot.knowledge.fragile_files).toContain('src/parser.ts');
     expect(snapshot.recent_events).toHaveLength(1);
     expect(snapshot.recent_events[0]!.type).toBe('change-merged');
+    expect(snapshot.healing).toEqual({
+      total_actions: 0,
+      active_action: null,
+      recent_actions: [],
+      recent_artifacts: [],
+    });
+  });
+
+  it('maps action history into healing snapshot data', async () => {
+    await writeJson(join(ORGANISM_DIR, 'actions', 'index.json'), [
+      {
+        id: 'action-running',
+        template_id: 'command-output-evidence-capture',
+        status: 'running',
+        updated_at: '2026-04-08T12:00:00Z',
+      },
+      {
+        id: 'action-done',
+        template_id: 'generated-output-pollution-audit',
+        status: 'succeeded',
+        updated_at: '2026-04-08T11:00:00Z',
+      },
+    ]);
+    await writeJson(join(ORGANISM_DIR, 'actions', 'instances', 'action-running.json'), {
+      id: 'action-running',
+      template_id: 'command-output-evidence-capture',
+      template_version: 1,
+      status: 'running',
+      started_at: '2026-04-08T12:00:00Z',
+      bound_inputs: {},
+      step_results: [],
+    });
+    await writeJson(join(ORGANISM_DIR, 'actions', 'instances', 'action-done.json'), {
+      id: 'action-done',
+      template_id: 'generated-output-pollution-audit',
+      template_version: 1,
+      status: 'succeeded',
+      started_at: '2026-04-08T10:59:00Z',
+      completed_at: '2026-04-08T11:00:00Z',
+      bound_inputs: {},
+      step_results: [
+        {
+          step_id: 'write-evidence',
+          step_type: 'write_artifact',
+          status: 'succeeded',
+          output: {
+            path: '.organism/actions/artifacts/generated-output-audit.md',
+          },
+        },
+      ],
+    });
+
+    const snapshot = await buildSnapshot(TEST_DIR);
+
+    expect(snapshot.healing.total_actions).toBe(2);
+    expect(snapshot.healing.active_action).toMatchObject({
+      id: 'action-running',
+      template_id: 'command-output-evidence-capture',
+      status: 'running',
+    });
+    expect(snapshot.healing.recent_actions.map((action) => action.id)).toEqual([
+      'action-running',
+      'action-done',
+    ]);
+    expect(snapshot.healing.recent_artifacts).toEqual([
+      {
+        path: '.organism/actions/artifacts/generated-output-audit.md',
+        action_id: 'action-done',
+        template_id: 'generated-output-pollution-audit',
+        status: 'succeeded',
+      },
+    ]);
   });
 
   it('detects active state when active-cycle.json exists', async () => {
